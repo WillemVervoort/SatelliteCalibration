@@ -21,7 +21,7 @@ library(knitr)
 This series of documents covers different ways of downloading and managing satellite data:
 
 * MODIS16A ET (collection 5) using the package MODISTools
-* MODIS1  NDVI (collection 6) (or any other NDVI product) and conversion to ET using METRIC
+* MODIS13Q1 NDVI (collection 5) (or any other NDVI product) and conversion to ET using METRIC
 * Need to talk to Ignacio about Google earth engine
 
 # Downloading MODIS ET data using MODISTools
