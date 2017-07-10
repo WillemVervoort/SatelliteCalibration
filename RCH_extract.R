@@ -1,6 +1,6 @@
 # Function to extract reach values in R:
 
-RCH_extract <- function(wd, rch, d.ini, d.end){
+RCH_extract <- function(wd, rch, d.ini, d.end, verbose=verbose){
   # loading the package required
   
   #read the file
@@ -13,6 +13,10 @@ RCH_extract <- function(wd, rch, d.ini, d.end){
   # Filter the data with the selected HRU
   sub.flow <- filter(flow.mod, RCH == rch)
   rm(flow.mod)
+  if (verbose) 
+    message("[ Running RCH_extract     ]")
+  if (verbose) 
+    message("===========================================")
   return(zoo(as.numeric(sub.flow$Flowout), seq(as.Date(d.ini), as.Date(d.end), "day")))
 }
 

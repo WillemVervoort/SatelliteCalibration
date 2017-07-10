@@ -5,10 +5,7 @@ require(data.table)
 require(hydroGOF)
 require(hydroPSO)
 require(hydroTSM)
-#require(doMC)
-require(parallel)
 require(doParallel)
-require(zoo)
 
 
 ### Defining the model input and output -------------------------------------###
@@ -17,9 +14,7 @@ require(zoo)
 ## Scrips should be in the scripts folder
 ### ------------------------------------------------------------------------ ###
 ## Specifying the model dir
-#model.drty <- "/project/RDS-FAE-HPWC-RW/PSO_Cotter"
-#model.drty <- "R:/PRJ-HPWC/SWAT_ETCalibration/PSO_Goodra"
-model.drty <- "C:/Users/rver4657/Documents/PSO_Cotter"
+model.drty <- "R:/PRJ-HPWC/SWAT_ETCalibration/PSO_Goodra"
 setwd(model.drty)
 
 
@@ -27,23 +22,83 @@ setwd(model.drty)
 
 ### Loading the scripts to extract modelled values---------------------------###
 
-#source(paste(model.drty,"/Scripts/Hydromod_PSO.R", sep = ""))
 source(paste(model.drty,"/Scripts/RCH_extract.R", sep = ""))
 source(paste(model.drty,"/Scripts/read_paramfile.R", sep = ""))
 source(paste(model.drty,"/Scripts/ParameterValues2InputFiles.R", sep = ""))
 source(paste(model.drty,"/Scripts/ModifyInputFile.R",sep = ""))
 source(paste(model.drty,"/Scripts/hydromodel.R", sep = ""))
 
-
 ### Reading the observed values
-Station <- "Flow_cumec_Gingira_410730"
+Station <- "Flow_cumec_Weejasper_410024"
 t_obs <- readRDS("PSO.in/Discharge_data_2000_2017.RDS")
 t_obs <- zoo(t_obs[,2:3],order.by=as.Date(t_obs$Date))
 obs <- t_obs[,match(Station,colnames(t_obs))]
-obs  <- window(obs,start=as.Date("2006-01-01"), end=as.Date("2010-12-31"))
+obs  <- window(obs,start=as.Date("2002-01-01"), end=as.Date("2006-12-31"))
 
 
-# Setting the model argument function
+############### Testing whether hydromod works ########################
+
+###--------- Alternative settings--------------###---------------------
+
+# out.FUN.args=list(
+#   file="output.rch",
+#   col.names="FLOW_OUTcms",
+#   out.type="Q",
+#   rchID=89,
+#   Date.Ini="2003-01-01",
+#   Date.Fin="2012-12-31",
+#   tstep="daily",
+#   verbose=FALSE
+# )
+# 
+# ### Function for assessing the simulated equivalents against the observations
+# param.values <- rep(0.38,30)
+# 
+# out <- hydromod(
+#   param.values = param.values,
+#   model.drty = model.drty,
+#   param.files = paste(model.drty,"/PSO.in/ParamFiles.txt",sep=""),
+#   exe.fname = "swat.exe",
+#   out.FUN="read_rch",
+#   out.FUN.args = out.FUN.args,
+#   gof.FUN = "KGE",
+#   gof.FUN.args = gof.FUN.args,
+#   stdout = "", 
+#   stderr = "" ,
+#   obs = obs,
+#   verbose = TRUE
+# )
+
+###-------- End of testing------------------------------------------------####
+
+# model.FUN.args=list(
+#   # Listing the arguments all together
+#   model.drty = model.drty,
+#   param.files = paste(model.drty,"/PSO.in/ParamFiles.txt",sep=""),
+#   exe.fname = "swat.exe",
+#   verbose = FALSE,
+#   #stdout = "",
+#   out.FUN = "read_rch",
+#   obs = obs,
+#   
+#   out.FUN.args = list(
+#     file="output.rch",
+#     col.names="FLOW_OUTcms",
+#     out.type="Q",                     
+#     rchID=89,
+#     Date.Ini= "2003-01-01",
+#     Date.Fin= "2012-12-31",
+#     tstep="daily"),
+#   
+#   gof.FUN = "KGE",
+#   gof.FUN.args = list(
+#     method = "2012",
+#     out.type = "single"
+#   )
+#   # End of listing arguments
+# )
+
+### model FUN.args.txt[Dipangkar]--------------------------####
 
 model.FUN.args=list(
   model.drty=model.drty,
@@ -57,31 +112,33 @@ model.FUN.args=list(
   out.FUN.args = list(
     wd = model.drty,
     rch = 1,
-    d.ini = "2006-01-01",
-    d.end = "2010-12-31"
+    d.ini = "2002-01-01",
+    d.end = "2006-12-31"
   ), ###END out.FUN.args                         
   ###Function assessing the simulated equivalents against the observations                  
   gof.FUN= "KGE",
-  gof.FUN.args = list(
-    method="2012",
-    out.type="single"
+  gof.FUN.args = list
+  (
+    method = "2012",
+    out.type = "single"
   )
-  )
+)
 
 ### Running the final algorithm ---------------------------------------------###
 
 # Number of cores/nodes desired
-needed_nodes <- 4
+par.nnodes <- 2
 # packages that have to be loaded in each core or node of the network cluster
-needed_pkgs   <- c("hydroGOF", "data.table", "dplyr", "zoo", "parallel") 
+par.pkgs   <- c("hydroGOF", "hydroTSM", "data.table", "dplyr", "doParallel") 
 
 
 ### MAIN PSO ALGORITHM
 ### For hydroPSO (>=0.3-0) fine-tuning parameters, see Zambrano-Bigiarini and Rojas, 2013
-#set.seed(100)
+
+set.seed(100)
 hydroPSO(
   fn="hydromod",
-  method = "spso2011",
+  method = "spso2007",
   #model.FUN="hydromod",
   #default method set to "spso2011"
   model.FUN.args=model.FUN.args,
@@ -92,8 +149,8 @@ hydroPSO(
     param.ranges = "ParamRanges.txt",
     normalise=TRUE,
     MinMax="max",
-    npart=30, # Just for testing if the optimisation runs correctly
-    maxit=200, # Just for testing if the optimisation runs correctly
+    npart=10, # Just for testing if the optimisation runs correctly
+    maxit=15, # Just for testing if the optimisation runs correctly
     reltol=1E-30, # Just to ensure 'maxit' is achieved
     Xini.type="lhs",
     Vini.type="lhs2011",
@@ -103,18 +160,16 @@ hydroPSO(
     use.IW=FALSE,
     use.CF=TRUE,   
     use.TVlambda=TRUE,TVlambda.type="linear",TVlambda.rng=c(1.0,0.5),TVlambda.exp=1,
-    topology="random",K=5,
+    topology="random",K=10,
     boundary.wall="absorbing2011",
     write2disk=TRUE,
-    REPORT=10,
+    REPORT=1,
     verbose=TRUE,
     parallel = "parallelWin",
-    par.nnodes = needed_nodes,
-    par.pkgs = needed_pkgs
+    par.nnodes = par.nnodes,
+    par.pkgs = par.pkgs
   ) ###END control options
 )
-
-print(warnings())
 
 
 
