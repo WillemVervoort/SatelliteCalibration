@@ -16,6 +16,9 @@ hydromod <- function(param.values,param.files,
                      )
 {
       setwd(model.drty)
+      if (!exists(out.FUN))
+        stop( "Invalid argument: the function '", out.FUN, "' does not exist!" )
+  
       gof.name <- gof.FUN
       if (verbose) 
             message("[ 1) Writing new parameter values ...     ]")

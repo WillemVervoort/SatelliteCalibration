@@ -1,5 +1,5 @@
 ---
-title: "MODIS data Cotter extract"
+title: "MODIS data Goodradigbee extract"
 author: "Willem Vervoort"
 date: "`r format(Sys.Date(),'%d-%m-%Y')`"
 output: 
@@ -37,7 +37,7 @@ if(!require(MODISTools)) install.packages("MODISTools")
 library(MODISTools)
 
 # read in file with xy locations (or create a data.frame)
-xy.loc <- read.csv("Inputdata/subbasins_Cotter.csv")
+xy.loc <- read.csv("Inputdata/subbasins_Goodra.csv")
 # Following the MODIS tools manual
 coords <- data.frame(lat=xy.loc$Lat, 
                      long=xy.loc$Long_,
@@ -51,8 +51,8 @@ GetProducts()
 GetBands(Product="MOD16A2")
 
 #Create directory in which to save data
-if (!dir.exists("MODIS/Cotter")) {
-  dir.create("MODIS/Cotter")
+if (!dir.exists("MODIS")) {
+  dir.create("MODIS")
 }
 
 # check if directory is empty
@@ -60,6 +60,6 @@ if (!dir.exists("MODIS/Cotter")) {
 # # Now download data using MODISSubsets (This can take very long)
 MODISSubsets(LoadDat=coords, Product = "MOD16A2",
              Bands=c("ET_1km","ET_QC_1km"), StartDate=T, Size=c(0,0),
-             SaveDir="MODIS/Cotter")
+             SaveDir="MODIS")
 ```
 
