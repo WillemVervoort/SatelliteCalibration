@@ -97,31 +97,33 @@ organiseFlow <- function(df_in, st.date, end.date) {
 # write function to create the text in the output file
 writeFun <- function(outfile, df_write, header = header, Flow = FALSE,
                      np = NULL, i = NULL, weight = 0.5) {
-  
+#  browser()
   p <- grep("subbasin number",header)
-  r <- grep("number of data points", header)
+  r <- grep("number of data points", header, ignore.case=T)
+
   
   if (outfile == "observed.txt" & Flow == TRUE) {
     header[p] <- paste("FLOW_OUT_1", "  ", 
                        substr(header[p], 11, nchar(header[p])),sep="")
-    header[p + 1] <- paste(weight, "    ",
+    header[p + 1] <- paste(ifelse(length(weight) > 1,weight[1],weight), "    ",
                            substr(header[p + 1], 7, nchar(header[p + 1])),sep="")
     header[r] <- paste(nrow(df_write),substr(header[r], 9, nchar(header[r])),
                        sep = "   ")
   } else {
     if (outfile == "observed.txt" & Flow == FALSE) {
+      if (length(weight) > 1) w <- weight[i+1] else w <- (1-weight)/np
       header[p] <- paste("ET_", i,"   ", 
                          substr(header[p], 11, nchar(header[p])),sep="")
-      header[p + 1] <- paste(round((1-weight)/np,3), 
+      header[p + 1] <- paste(round(w,4), 
                              "    ",
                              substr(header[p + 1], 9, nchar(header[p + 1])),
                              sep="")
-      header[r] <- paste(nrow(df_write),substr(header[r], 9, nchar(header[r])),
+      header[r] <- paste(nrow(df_write),substr(header[r], 6, nchar(header[r])),
                          sep = "   ")
     } else {
       header[p] <- paste("ET_", i, "  ", 
                          substr(header[p], 11, nchar(header[p])),sep="")
-      header[r] <- paste(nrow(df_write),substr(header[r], 9, nchar(header[r])),
+      header[r] <- paste(nrow(df_write),substr(header[r], 6, nchar(header[r])),
                          sep = "   ")
     }
   }
@@ -174,39 +176,53 @@ swatcup_ETformat <- function(df, df_flow = NULL, date.format = "%Y-%m-%d",
     # write the data and header
     writeFun(outfile = outfile,
              df_write = df_in2, header = header, Flow = FALSE, 
-             np = length(unique(df$Point)), i = i, weight=weight)
+             np = length(unique(df$Point)), i = i, 
+             weight=weight)
   }
 }
 
 
-# testing and application
-# # read in flow data
-# flowdata <- readRDS(flowdata,file="X:/GRP-HGIS/Public/SWAT_DB/Flow data_Corrin_goodra/Discharge_data_2000_2017.RDS")
-# head(flowdata)
-# colnames(flowdata)[1] <- "Date"
-# 
-# # Create a single file with all the MODIS ET data for all points
-# ET_Data <- MODIS_ts("X:/PRJ-HPWC/SWAT_ETCalibration/MODIS/Cotter")
-# # show the data
-# head(ET_Data)
-# 
-# # save file for later
-# #saveRDS(ET_Data,"c:/users/rver4657/documents/test/ETData.RDS")
-# 
-# # for testing:
-# setwd("c:/users/rver4657/documents/test")
-# 
-# # write observed_sub.txt
-# swatcup_ETformat(ET_Data, df_flow = NULL, date.format = "%Y-%m-%d", 
-#                              "2006-01-01", "2011-12-31", 
-#                  "observed_sub.txt" ,"observed_sub.txt", 6, weight= 0.1)
-# 
-#   
-# 
-# # write observed.txt
-# swatcup_ETformat(ET_Data, df_flow = flowdata[,c(1,3)], 
-#                  date.format = "%Y-%m-%d", 
-#                  "2006-01-01", "2011-12-31", 
-#                  "observed.txt" ,"observed.txt", 14, Flow = TRUE, weight = 0.1)
+#testing and application
+# read in flow data
+flowdata <- readRDS(file="X:/PRJ-HPWC/SWAT_ETCalibration/inputdata/Discharge_data_2000_2017.RDS")
+head(flowdata)
+colnames(flowdata)[1] <- "Date"
+
+# Create a single file with all the MODIS ET data for all points
+ET_Data <- MODIS_ts("X:/PRJ-HPWC/SWAT_ETCalibration/MODIS/Cotter")
+# show the data
+head(ET_Data)
+
+# save file for later
+#saveRDS(ET_Data,"c:/users/rver4657/documents/test/ETData.RDS")
+
+# for testing:
+setwd("c:/users/rver4657/documents/test")
+
+# write observed_sub.txt
+swatcup_ETformat(ET_Data, df_flow = NULL, date.format = "%Y-%m-%d",
+                             "2006-01-01", "2011-12-31",
+                 "observed_sub.txt" ,"observed_sub.txt", 6, weight= 0.1)
 
 
+
+# write observed.txt
+swatcup_ETformat(ET_Data, df_flow = flowdata[,c(1,3)],
+                 date.format = "%Y-%m-%d",
+                 "2006-01-01", "2011-12-31",
+                 "observed.txt" ,"observed.txt", 14, Flow = TRUE, weight = 0.1)
+
+# Now test putting in weights relative to the size of the subcatchment
+subbasin_data <- read.csv("X:/PRJ-HPWC/SWAT_ETCalibration/inputdata/subbasins_Cotter_alldata.csv")
+
+# calculate weights from relative areas
+f_w <- 0.1 # flow weight
+ET_w <- subbasin_data$Area/sum(subbasin_data$Area)*(1-f_w)
+ w_in <- c(f_w, ET_w)
+
+ # now try to write the file
+swatcup_ETformat(ET_Data, df_flow = flowdata[,c(1,3)],
+                  date.format = "%Y-%m-%d",
+                  "2006-01-01", "2011-12-31",
+                  "observed.txt" ,"observed.txt", 14, Flow = TRUE, weight = w_in)
+ 

@@ -1,5 +1,4 @@
 # Function to extract reach values in R:
-
 RCH_extract <- function(filename, rch, d.ini, d.end, verbose=verbose){
   # loading the package required
   

@@ -155,3 +155,25 @@ gp <- gp + geom_point(data = KGE_sub, aes(x = long, y = lat, col=KGE,
 gp <- gp + geom_point(data = vegsites, aes(x = Long, y = Lat), col="green") +
   geom_text(data = vegsites, aes(x = Long, y = Lat,label=Site), vjust=-1)
 print(gp)
+
+# now read in the results for sixth ET calibration (changed pars and 0.1 flow)
+sim_res <- read_table("iterations/SixthETCalibration01Flow/PSO.OUT/summary_stat.txt", skip=3)
+
+# now link results to lat and longs of subbasins
+KGE_sub <- data.frame(long = subbasins[,3],
+                      lat = subbasins[,2],
+                      KGE = sim_res$KGE[2:26])
+
+NSE_sub <- data.frame(long = subbasins[,3],
+                      lat = subbasins[,2],
+                      NSE = sim_res$NS[2:26])
+
+
+# plotting
+gp <- ggplot(cotter, aes(x = long, y = lat)) + geom_polygon(fill="gray75") +
+  coord_equal()
+gp <- gp + geom_point(data = KGE_sub, aes(x = long, y = lat, col=KGE, 
+                                          size = 2*KGE))
+gp <- gp + geom_point(data = vegsites, aes(x = Long, y = Lat), col="green") +
+  geom_text(data = vegsites, aes(x = Long, y = Lat,label=Site), vjust=-1)
+print(gp)
