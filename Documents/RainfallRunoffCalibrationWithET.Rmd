@@ -1,0 +1,339 @@
+---
+title: "Course notes Advanced SWAT"
+author: "Willem Vervoort"
+date: "`r format(Sys.Date(),'%d-%m-%Y')`"
+output: 
+    pdf_document:
+      fig_width: 7
+      fig_height: 6
+      fig_caption: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = 
+                       "R:/PRJ-HPWC/SWAT_ETCalibration/Uruguaycourse")
+library(pander)
+library(knitr)
+```
+
+# Aims of this part of the course:  
+
+*	Perform data extraction from satellite data into a usable format for Cotter catchment  
+*	Perform analysis of the downloaded satellite data  
+*	Develop and calibrate a GR4J model for the Cotter catchment in combination with local station data and satellite data  
+*	Test how different data input can affect model performance  
+
+# What is the issue?  
+
+Satellite data downloaded from typical sites is not directly useable in hydrological models. Here we use the example of MODIS data, which has a nice R package to make the data usable and take you through all the necessary steps to calibrate a Hydomad (GR4J) model.  
+Recapping: 
+
+* Download the data
+* Load the data in R
+* Prepare timeseries
+
+Only after all that can we try to use it in a model to calibrate, so here we go!
+
+# Section 1: Downloading, extracting and analysis of the satellite ET data  
+I have set the working directory before, you might need to do this using `setwd()`.
+We first load a series of packages that we will need. The new one here is `MODISTools`. This is a specific package that allows you to download different MODIS products. Make sure you have the latest version installed.
+
+```{r packages}
+# Loading the packages required
+require(MODISTools)
+require(zoo)
+require(hydromad)
+require(tidyverse)
+```
+
+## Read-in point location within the catchment
+This is for the Cotter catchment, and I have extracted all the centroids of the subcatchments using ARCGIS. There is probably an equivalent operation in QGIS.
+
+```{r Cotterpoints}
+xy.loc <- read.csv("data/subbasins_Cotter.csv")
+```
+
+Step 1 is to decide on the time period which we want to download. Since this is time consuming, so as demonstration we will download data for two years and any random 5 location points within the catchment. I have downloaded all the relevant data already and made available via the shared drive.
+We need to figure out the name of the satellite product that we want to use, you can use `GetProducts()` and check what bands are available for the product
+
+```{r NameProducts}
+GetProducts()
+GetBands(Product="MOD16A2")
+```
+
+Create directory in which to save data, in this case we will be working first with Cotter data. You can do this in windows, but you can also use an R command. I am chekcing first if it exists
+```{r dirCreate}
+if (!dir.exists("MODIS_data_cotter")) {
+  dir.create("MODIS_data_cotter")
+}
+```
+
+
+## Download only first 5 coordinates for 2 years
+I am defining a coordinate dataframe (this follows the MODISTools Vignette) for the first 5 points. The next step is to actually pull the data from the server using the `MODISSubsets()` command
+
+**We look at this manually if we cannot get the server to respond** I have downloaded the data that we will use.
+
+```{r coordExtract}
+coords <- data.frame(lat=xy.loc$Lat[1:5], 
+                     long=xy.loc$Lon[1:5],
+                     start.date=rep(2005,5), 
+                     end.date=rep(2006,5), 
+                     ID=1:5)
+## run MODISSubsets
+MODISSubsets(LoadDat=coords, Products = "MOD16A2",
+                Bands="ET_1km", StartDate=T,
+             Size=c(0,0), SaveDir="MODIS_data_cotter")
+```
+
+## Convert to timeseries  
+We need to read the downloaded MODIS ET data into a time-series format. For this we will create a function to read MODIS data into time-series format. This function will go to the directory we specify and find all the files that have the extension ".asc". (Or any other extension that you specify). In class we will have a look at what these files look like.
+In the below function, take a good look at the naming of the columns in `Store`, as we will be using this later.  
+
+```{r MODISts}
+MODIS_ts <- function(MODISdir="MODIS",patt=".asc"){
+  
+  # read in all the file names
+   x1 <- list.files(path=MODISdir, pattern=patt)
+  
+    # each "asc" file stores all the values in time for 1 location including the QA data
+ # the number of rows is important as this is all the time steps
+  # divide nrows by 2 as second part is QC data
+  n <- nrow(read.csv(paste(MODISdir,x1[1],sep="/"),header=F))/2
+  # Create storage for the data, Jdate is Julian date
+  Store <- data.frame(Year = numeric(length=n),
+                      JDay = numeric(length=n),
+                      ET = numeric(length=n),
+                      Point = numeric(length = n))    
+    # Create a list to store the different pixels (each with a Store)
+    Store1 <- list()
+    # run a loop over the list of file names
+    for (i in 1:length(x1)) {
+      Mdata <- read.csv(paste(MODISdir,x1[i],sep="/"),header=F)
+      # do some substringing
+      Store[,1] <- as.numeric(substr(Mdata[1:n,8],2,5))
+      Store[,2] <- as.numeric(substr(Mdata[1:n,8],6,8))
+      Store[,3] <- Mdata[1:n,11]/10 
+      # 0.1 scaling factor (see MODIS read_me)
+      Store[,4] <- i
+      Store1[[i]] <- Store
+
+    }
+    # converting from list back to a data.frame
+    ts.data <- do.call(rbind,Store1) 
+    # Now make the date from the Year and Jdate
+    ts.data$Date <- as.Date(paste(ts.data$Year,ts.data$JDay, 
+                                  sep = "/"), "%Y/%j")
+    
+    return(ts.data)
+}
+
+# and we can run this function and check the data
+Cotter_ET <- MODIS_ts(MODISdir = "MODIS_data_cotter")
+# Chk the data
+head(Cotter_ET)
+
+```
+So this extracts for 5 data points the full time series over 2 years, but note that we only have data every 8 days. Note the column with Julian dates (Jdate). As we discussed, MODIS only supplies data every 8 days even though it is measured more frequently.
+
+## Visualise the data
+We now want to visualize the 8 daily ET over two years. This is now quite straight forward, recognising thet the column Point indicates the different grid cells/pixels. Adjust colours to show this.
+
+```{r plot_ts,fig.cap="Timeseries of ET at the different points"}
+plot(subset(Cotter_ET, Point == 1)[,c("Date","ET")], 
+     type = "b", pch = 16, col = "blue", 
+     xlab = "8-day time series", ylab = "8-day ET in mm", ylim=c(0,50))
+points(subset(Cotter_ET, Point == 2)[,c("Date","ET")], 
+     type = "b", pch = 16, col = "red")
+points(subset(Cotter_ET, Point == 3)[,c("Date","ET")], 
+       type = "b", pch = 16, col = "grey60")
+points(subset(Cotter_ET, Point == 4)[,c("Date","ET")], 
+       type = "b", pch = 16, col = "black")
+points(subset(Cotter_ET, Point == 5)[,c("Date","ET")], 
+       type = "b", pch = 16, col = "green")
+```
+
+We could also make a simple histogram across all the points extracted.  
+```{r plot_hist,fig.cap="Histogram of MODIS ET across the different points"}
+hist(Cotter_ET$ET, xlab="MODIS ET")
+```
+
+## Aggregating to mean ET for the catchment  
+We can also agrregate the ET data and obtain average ET for the entire catchment (Note that we are using only 5 points in this case so this will actually not be representative of the catchment). We will use the function `aggregate()` again
+
+```{r ETmean, fig.cap="Average ET for the five points"}
+ET.mean <- aggregate(Cotter_ET[,3],list(JDay=Cotter_ET$JDay, 
+                        Year=Cotter_ET$Year), FUN = mean,na.rm=T)
+# Check the data
+head (ET.mean)
+# Create a date column from Jdate
+ET.mean$Date <- as.Date(paste(ET.mean$Year,ET.mean$JDay, 
+                              sep = "/"), "%Y/%j")
+# Now, make a plot of the mean 8 daily ET 
+plot(ET.mean$Date,ET.mean$x, xlab = "Time (8-daily)", 
+     ylab = "Basin average ET")
+```
+
+**Task 1**: Repeat the analysis for Santa Lucia catchment, pick any two years between 2001 and 2014 and select any random 5 points within the Santa Lucia catchment.
+
+# Section 2: Develop and Calibrate a model with Satellite ET data for the Cotter Catchment
+
+## Load ET data
+
+In this case we are going to use data that I have downloaded before for all the pixels in the catchment. This takes to long for the course, so I have made a separate file with the data for all the pixels in the catchment. This file is on the shared drive
+
+```{r loadETdata, fig.cap="Cotter Catchment average MODIS ET timeseries"}
+# Read-in the ET data already downloaded for the Cotter catchment
+Cotter_ET <- MODIS_ts(MODISdir = "MODIS/cotter")
+
+# In here, first convert to wide format, use tidyverse
+Cotter_ET_w <- spread(Cotter_ET, key=Point, value=ET)
+
+# Converting date to date format
+Cotter_ET_w$Date <- as.Date(Cotter_ET_w$Date)
+names(Cotter_ET_w)
+
+# Calculating the catchment average ET
+Cotter_avgET  <- data.frame(Date = Cotter_ET_w$Date,
+                  ETa = apply(Cotter_ET_w[,4:ncol(Cotter_ET_w)],
+                                        1, mean, na.rm = T))
+
+# Converting to a zoo format to work with hydromad
+Cotter_MODISET <- zoo(Cotter_avgET$ETa,
+                      order.by=Cotter_avgET$Date)
+# we can plot to see the data
+plot(Cotter_MODISET, xlab="Date", 
+     ylab="8-day summed MODIS ET (mm)")
+```
+
+## Define and calibrate GR4J
+We will again use the "GR4J" model in hydromad package. The approach will be similar to week 3 but we will also test calibration with satellite derived ET. This basically repeats some of the analysis Vervoort et al (2014) did with IHACRES. 
+To make things easier, Joseph Guillaume and I have written a series of functions in R to help do this in hydromad. These will be incorporated in hydromad in the future, but at the moment, it just exists as separate files. Load these first using `source()`, and they are stored in the "functions" folder in my system, but they are also on the U drive and on the LMS.
+
+```{r sourceFun}
+source("functions/leapfun.R")
+source("functions/ETa.merge.R")
+source("functions/plot.ET.R")
+source("functions/ETfit.objectives.R")
+
+```
+
+Then we need to load the data and merge this with the ET data. The `ETa.merge()` function needs to be used rather than the classical `zoo.merge()` because the MODIS ETa data is only every 8 days and this needs to be merged with the daily flow, rainfall and maxT data.
+
+I have prepared a full hydromad dataset for the Cotter catchment earlier. This is `Cotter.Rdata`.
+
+```{r dataLoadmerge, fig.cap="Merged dataset for the Cotter Catchment"}
+load("data/Cotter.Rdata") # this is the flow data
+Cotter$Q <- convertFlow(Cotter$Q, from="ML", area.km2=250)
+
+# discard the data before 2000
+Cotter <- window(Cotter, start="2000-01-01")
+
+Cotter_Sat <- ETa.merge(Flowdata=Cotter,ETdata=Cotter_MODISET)
+# Make a plot
+xyplot(Cotter_Sat)
+```
+
+## Calibrating GR4J
+Now we will first setup and calibrate the model with station data as we have done in Week3 prac then we will calibrate the same model in combination with the satellite ET data. This will enable us to see how model estimation is influenced by adding extra observable flux. Subset the data for the calibration period and load it into model.  
+First, we will run the model without the satellite ET data
+
+```{r GR4Jcalibration, fig.cap="GR4J model fitted with local station data"}
+# Data period for calibration
+data_cal <- window(Cotter, start = "2005-01-01",end = "2010-12-31")
+
+# Data for validation period
+data_val <- window(Cotter, start = "2011-01-01",end = "2014-12-31")
+
+# Define the model, important to define return_state=T
+Cotter_mod <- hydromad(DATA=data_cal,
+                   sma = "gr4j", routing = "gr4jrouting", 
+                   x1 = c(500,2500), x2 = c(-30,20), x3 = c(5,500), 
+                   x4 = c(0.5,10), etmult=c(0.01,0.5), 
+                   return_state=TRUE)
+
+# Using shuffled complex evolution algorithm for fitting
+Cotter_fit<- fitBySCE(Cotter_mod,  
+                     objective= hmadstat("r.squared"))
+
+# Extract the coefficients and the summary
+summary(Cotter_fit)
+# plot
+xyplot(Cotter_fit, with.P = TRUE)
+```
+
+## Recalibrate with MODIS ET data
+Now calibrate the model with the satellite ET data. This requires a few little tricks, one of these is the use a specific objective function (as we discussed in the lecture) that combines the Eta and the Q function. There is a "weighting" factor in this function, which we initially will just set to 0.5 (equal weighting between ETa and Q).
+
+```{r CalibrationETa, fig.cap="GR4J Model fitted with local station and Satellite ET data"}
+# remake the calibration data
+data_modis_cal <- window(Cotter_Sat, start = "2005-01-01",end = "2010-12-31")
+
+# also make the validation data
+data_modis_val <- window(Cotter_Sat, start = "2011-01-01",end = "2014-12-31")
+
+# Because we have rebuilt data.cal, redefine the model
+Cotter_mod_Modis <- hydromad(DATA=data_modis_cal,
+                   sma = "gr4j", routing = "gr4jrouting", 
+                   x1 = c(500,3000), x2 = c(-30,20), 
+                   x3 = c(5,500), x4 = c(0.5,10), 
+                   etmult=c(0.01,0.5), 
+                   return_state=TRUE)
+
+
+# fit both ET and Q using special objective function
+Cotter_Fit_Modis <- fitBySCE(Cotter_mod_Modis,
+                             objective=~hmadstat("JointQandET")(Q,X,w=0.5, 
+                                    DATA=DATA,model=model,objf = hmadstat("viney")))
+
+# check the model fit
+summary(Cotter_Fit_Modis)
+## 
+# Plotting the results
+xyplot(Cotter_Fit_Modis, with.P = TRUE)
+```
+
+We can now also look at how it predicts actual ET and how this compares to the observed ET. Use the `plot.ET()` function.  
+
+```{r plotET, fig.cap="Plot showing observed vs predicted actual ET"}
+plot.ET(caldata=data_modis_cal,Cotter_Fit_Modis)
+```
+
+## Model comparison
+We can now compare the model performance and whether this has chnaged for the two calibration methods.  
+
+```{r ModelPerformance}
+coef(Cotter_fit)
+coef(Cotter_Fit_Modis)
+objFunVal(Cotter_fit)
+objFunVal(Cotter_Fit_Modis)
+```
+
+And then do the same for validation and make a runlist.  
+
+```{r ValPerformance}
+# updating the model data for the validation
+sim_val <- update(Cotter_fit, newdata = data_val)
+sim_val_modis <- update(Cotter_Fit_Modis, newdata = data_modis_val)
+
+# runlist
+allMods <- runlist(calibration=Cotter_fit, validation=sim_val,
+                   calibrationET=Cotter_Fit_Modis, 
+                   validationET= sim_val_modis)
+
+# Get the summary results
+round(summary(allMods),2)
+```
+
+Comment on the model performance:
+
+* Does fitting on ET help? 
+* What other comparisons could we make to test the behaviour?
+* Can we improve the model performance?
+* How could we manipulate the emphasis of the calibration on ET relative to Q?
+
+**Task 2 (optional)**: 
+
+* Perform the model calibration and validation for Santa Lucia catchment and explain your results with graphs and statistical summary. 
+* How does use of satellite ET data benefit in model calibration? 

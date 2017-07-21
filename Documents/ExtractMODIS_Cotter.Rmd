@@ -1,0 +1,65 @@
+---
+title: "MODIS data Cotter extract"
+author: "Willem Vervoort"
+date: "`r format(Sys.Date(),'%d-%m-%Y')`"
+output: 
+    pdf_document:
+      fig_width: 7
+      fig_height: 6
+      fig_caption: true
+---
+
+```{r setup, warning=F, message=F, echo=F}
+# root dir
+knitr::opts_knit$set(root.dir = 
+                       "X:/PRJ-HPWC/SWAT_ETCalibration")
+library(pander)
+library(knitr)
+```
+
+# Introduction
+This document covers downloading satellite data:
+
+* MODIS16A ET (collection 5) using the package MODISTools
+
+# Downloading MODIS ET data using MODISTools
+The first component is a demonstration of using the package MODISTools in R to download the data. In this case the example will be based on extracting data for the midpoints of the subbasins of a SWAT model for the Cotter catchment
+
+## how to extract the midpoints  
+This is fairly easy in ARCSWAT, the model actually generates the midpoints as part of the watershed delineation and you can access this through the table of data of the shape file.
+
+## Downloading the data
+Below is the actual download of the MODIS data, this requires an input file with the coordinates of the midpoints. Also, at this point in time, there is no MODIS16A in collection 6, so we have to rely on the older collection 5.
+
+```{r download}
+# Example catchment  Cotter
+if(!require(MODISTools)) install.packages("MODISTools")
+library(MODISTools)
+
+# read in file with xy locations (or create a data.frame)
+xy.loc <- read.csv("Inputdata/subbasins_Cotter.csv")
+# Following the MODIS tools manual
+coords <- data.frame(lat=xy.loc$Lat, 
+                     long=xy.loc$Long_,
+                     start.date=rep(2000,nrow(xy.loc)), 
+                     end.date=rep(2014,nrow(xy.loc)), 
+                     ID=1:nrow(xy.loc))
+
+# We need to figure out the name of the product, you can use GetProducts()
+GetProducts()
+# and check out the data bands that are in the product
+GetBands(Product="MOD16A2")
+
+#Create directory in which to save data
+if (!dir.exists("MODIS/Cotter")) {
+  dir.create("MODIS/Cotter")
+}
+
+# check if directory is empty
+
+# # Now download data using MODISSubsets (This can take very long)
+MODISSubsets(LoadDat=coords, Product = "MOD16A2",
+             Bands=c("ET_1km","ET_QC_1km"), StartDate=T, Size=c(0,0),
+             SaveDir="MODIS/Cotter")
+```
+
