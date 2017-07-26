@@ -1,10 +1,10 @@
 # rewriting SWATCUP input files
-setwd("R:/PRJ-HPWC/SWAT_ETCalibration")
+setwd("X:/PRJ-HPWC/SWAT_ETCalibration/Uruguaycourse")
 source("functions/SWATCUPfunctions.R")
 
 #testing and application
 # read in flow data
-flowdata <- readRDS(file="inputdata/Discharge_data_2000_2017.RDS")
+flowdata <- readRDS(file="data/Discharge_data_2000_2017.RDS")
 head(flowdata)
 colnames(flowdata)[1] <- "Date"
 
@@ -21,7 +21,7 @@ setwd("c:/users/rver4657/documents/test")
 
 # write observed_sub.txt
 swatcup_ETformat(ET_Data, df_flow = NULL, date.format = "%Y-%m-%d",
-                             "2006-01-01", "2011-12-31",
+                             "2013-01-01", "2014-12-31",
                  "observed_sub.txt" ,"observed_sub.txt", 6, weight= 0.1)
 
 
@@ -29,7 +29,7 @@ swatcup_ETformat(ET_Data, df_flow = NULL, date.format = "%Y-%m-%d",
 # write observed.txt
 swatcup_ETformat(ET_Data, df_flow = flowdata[,c(1,3)],
                  date.format = "%Y-%m-%d",
-                 "2006-01-01", "2011-12-31",
+                 "2007-01-01", "2012-12-31",
                  "observed.txt" ,"observed.txt", 14, Flow = TRUE, weight = 0.1)
 
 # Now test putting in weights relative to the size of the subcatchment
@@ -43,6 +43,6 @@ ET_w <- subbasin_data$Area/sum(subbasin_data$Area)*(1-f_w)
  # now try to write the file
 swatcup_ETformat(ET_Data, df_flow = flowdata[,c(1,3)],
                   date.format = "%Y-%m-%d",
-                  "2006-01-01", "2011-12-31",
+                  "2013-01-01", "2014-12-31",
                   "observed.txt" ,"observed.txt", 14, Flow = TRUE, weight = w_in)
  

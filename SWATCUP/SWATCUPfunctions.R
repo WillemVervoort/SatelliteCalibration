@@ -102,11 +102,11 @@ writeFun <- function(outfile, df_write, header = header,
                      np = NULL, i = NULL, weight = 0.5) {
   #browser()
   p <- grep("subbasin number",header)
-  r <- grep("number of data points", header, ignore.case=T)
+  r <- grep("of data points", header, ignore.case=T)
   
   # writing the rch file
   if (gregexpr("observed_rch.txt",outfile)==T) {
-    header[p] <- paste("FLOW_OUT_1","   ", 
+    header[p] <- paste("FLOW_OUT_1","     ", 
                        substr(header[p], 11, nchar(header[p])),sep="")
     header[r] <- paste(nrow(df_write),substr(header[r], 6,
                                              nchar(header[r])),
@@ -115,35 +115,35 @@ writeFun <- function(outfile, df_write, header = header,
   
   # writing the observed.txt file
   if (gregexpr("observed.txt",outfile, fixed=T)==T & Flow == TRUE) {
-    header[p] <- paste("FLOW_OUT_1", "  ", 
+    header[p] <- paste("FLOW_OUT_1", "    ", 
                        substr(header[p], 11, nchar(header[p])),sep="")
     header[p + 1] <- paste(ifelse(length(weight) > 1,weight[1],weight),
-                           "    ",substr(header[p + 1], 7, 
+                           "      ",substr(header[p + 1], 7, 
                                          nchar(header[p + 1])),sep="")
-    header[r] <- paste(nrow(df_write),substr(header[r], 9,
+    header[r] <- paste(nrow(df_write),substr(header[r], 6,
                                              nchar(header[r])),
                        sep = "   ")
   } else {
     if (gregexpr("observed.txt",outfile, fixed=T)==T & Flow == FALSE) {
       if (length(weight) > 1) w <- weight[i+1] else w <- (1-weight)/np
-      header[p] <- paste("ET_", i,"   ", 
+      header[p] <- paste("ET_", i,"     ", 
                          substr(header[p], 11, nchar(header[p])),sep="")
       header[p + 1] <- paste(round(w,4), "    ", 
                              substr(header[p + 1], 9, 
                                     nchar(header[p + 1])),
-                             sep="")
+                             sep="   ")
       header[r] <- paste(nrow(df_write),substr(header[r], 6,
                                                nchar(header[r])),
-                         sep = "   ")
+                         sep = "     ")
     } 
   }
   # writing observed_sub.txt
   if (gregexpr("observed_sub.txt",outfile)==T) {
-    header[p] <- paste("ET_", i, "  ", 
+    header[p] <- paste("ET_", i, "    ", 
                        substr(header[p], 11, nchar(header[p])),sep="")
     header[r] <- paste(nrow(df_write),substr(header[r], 6,
                                              nchar(header[r])),
-                       sep = "   ")
+                       sep = "     ")
   }
   # write to a file, but with a header
   write(header[(p-1):(r+2)], file = outfile, append = T)

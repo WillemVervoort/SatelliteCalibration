@@ -8,7 +8,7 @@ require(zoo)
 require(tidyverse)
 
 # setwd()
-setwd("C:/Users/rver4657/Documents/Cotter2017n.PSO.SwatCup")
+setwd("R:/PRJ-HPWC/SWAT_ETCalibration/Cotter2017.PSO.SwatCup")
 
 # Option 1, if there are no ET in the objective function
 # In this case: move output.sub to the iteration folder
@@ -16,7 +16,7 @@ setwd("C:/Users/rver4657/Documents/Cotter2017n.PSO.SwatCup")
 source("Iterations/Extract_subbasin.R")
 
 # read in the observed ET data
-ET_obs <- readRDS("c:/users/rver4657/documents/test/ETData.RDS")
+ET_obs <- readRDS("../Uruguaycourse/data/ETData.RDS")
 
 # # read in the output.sub file for sub basin 1
 # ET_sub1 <- extract.sub(getwd(),sb=1)
@@ -41,7 +41,7 @@ require(hydroGOF)
 
 
 for (i in 1:25 ){
-  ET_sub1 <- extract.sub(paste(getwd(),"iterations/flowcalibration",sep="/"),
+  ET_sub1 <- extract.sub(paste(getwd(),"iterations/flowcalibration0912",sep="/"),
                          sb=i)
 
   ET_sub1_z <- zoo(ET_sub1$ET, order.by=seq.Date(as.Date("2006-01-01"),
@@ -63,7 +63,7 @@ for (i in 1:25 ){
   summary_ETstats$NSE[i] <- NSE(ET_all[,1],ET_all[,2])
 }
 
-write.csv(summary_ETstats,"Iterations/flowcalibration/summary_ETstats.csv",
+write.csv(summary_ETstats,"Iterations/flowcalibration0912/summary_ETstats.csv",
           row.names=F)
 
 
@@ -100,14 +100,14 @@ for (i in 1:25) {
   points(ETdata_z$observed,col="blue")
 }
 
-# Second ET calibration (shift in weight  )
-foo <- file("iterations/SecondETCalibration/pso.out/best_sim.txt", "r+")
+# Eight ET calibration (shift in weight  )
+foo <- file("iterations/8thETCalibration/pso.out/best_sim.txt", "r+")
 test <- readLines(foo)
 
 
 for (i in 1:25) {
   lineno <- grep(paste("ET_",i, sep=""),test)[1]
-  ETdata <- fread("iterations/SecondETCalibration/pso.out/best_sim.txt", 
+  ETdata <- fread("iterations/8thETCalibration/pso.out/best_sim.txt", 
                   data.table=T, skip = lineno, nrows=276, header=T)
   
   
