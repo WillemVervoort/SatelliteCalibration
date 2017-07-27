@@ -1,15 +1,15 @@
 # rewriting SWATCUP input files
-setwd("X:/PRJ-HPWC/SWAT_ETCalibration/Uruguaycourse")
-source("functions/SWATCUPfunctions.R")
+setwd("X:/PRJ-HPWC/SWAT_ETCalibration/SatelliteCalibration")
+source("SWATCUP/SWATCUPfunctions.R")
 
 #testing and application
 # read in flow data
-flowdata <- readRDS(file="data/Discharge_data_2000_2017.RDS")
+flowdata <- readRDS(file="../inputdata/Discharge_data_2000_2017.RDS")
 head(flowdata)
 colnames(flowdata)[1] <- "Date"
 
 # Create a single file with all the MODIS ET data for all points
-ET_Data <- MODIS_ts("MODIS/Cotter")
+ET_Data <- MODIS_ts("../MODIS/Cotter")
 # show the data
 head(ET_Data)
 
@@ -21,7 +21,7 @@ setwd("c:/users/rver4657/documents/test")
 
 # write observed_sub.txt
 swatcup_ETformat(ET_Data, df_flow = NULL, date.format = "%Y-%m-%d",
-                             "2013-01-01", "2014-12-31",
+                             "2009-01-01", "2012-12-31",
                  "observed_sub.txt" ,"observed_sub.txt", 6, weight= 0.1)
 
 
@@ -43,6 +43,6 @@ ET_w <- subbasin_data$Area/sum(subbasin_data$Area)*(1-f_w)
  # now try to write the file
 swatcup_ETformat(ET_Data, df_flow = flowdata[,c(1,3)],
                   date.format = "%Y-%m-%d",
-                  "2013-01-01", "2014-12-31",
+                  "2009-01-01", "2012-12-31",
                   "observed.txt" ,"observed.txt", 14, Flow = TRUE, weight = w_in)
  

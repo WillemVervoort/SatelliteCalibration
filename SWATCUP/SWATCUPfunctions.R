@@ -100,12 +100,12 @@ organiseFlow <- function(df_in, st.date, end.date) {
 writeFun <- function(outfile, df_write, header = header, 
                      Flow = FALSE,
                      np = NULL, i = NULL, weight = 0.5) {
-  #browser()
+  browser()
   p <- grep("subbasin number",header)
   r <- grep("of data points", header, ignore.case=T)
   
   # writing the rch file
-  if (gregexpr("observed_rch.txt",outfile)==T) {
+  if (regexpr("observed_rch.txt",outfile, fixed = T)[[1]]>0) {
     header[p] <- paste("FLOW_OUT_1","     ", 
                        substr(header[p], 11, nchar(header[p])),sep="")
     header[r] <- paste(nrow(df_write),substr(header[r], 6,
@@ -114,7 +114,7 @@ writeFun <- function(outfile, df_write, header = header,
   }
   
   # writing the observed.txt file
-  if (gregexpr("observed.txt",outfile, fixed=T)==T & Flow == TRUE) {
+  if (regexpr("observed.txt",outfile, fixed=T)[[1]]>0 & Flow == TRUE) {
     header[p] <- paste("FLOW_OUT_1", "    ", 
                        substr(header[p], 11, nchar(header[p])),sep="")
     header[p + 1] <- paste(ifelse(length(weight) > 1,weight[1],weight),
@@ -124,7 +124,7 @@ writeFun <- function(outfile, df_write, header = header,
                                              nchar(header[r])),
                        sep = "   ")
   } else {
-    if (gregexpr("observed.txt",outfile, fixed=T)==T & Flow == FALSE) {
+    if (regexpr("observed.txt",outfile, fixed=T)[[1]]>0 & Flow == FALSE) {
       if (length(weight) > 1) w <- weight[i+1] else w <- (1-weight)/np
       header[p] <- paste("ET_", i,"     ", 
                          substr(header[p], 11, nchar(header[p])),sep="")
@@ -138,7 +138,7 @@ writeFun <- function(outfile, df_write, header = header,
     } 
   }
   # writing observed_sub.txt
-  if (gregexpr("observed_sub.txt",outfile)==T) {
+  if (regexpr("observed_sub.txt",outfile, fixed=T)[[1]]>0) {
     header[p] <- paste("ET_", i, "    ", 
                        substr(header[p], 11, nchar(header[p])),sep="")
     header[r] <- paste(nrow(df_write),substr(header[r], 6,

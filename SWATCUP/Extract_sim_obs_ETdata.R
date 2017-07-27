@@ -39,7 +39,10 @@ summary_ETstats <- data.frame(sub = 1:25, KGE = rep(0,25),
                                NSE = rep(0,25))
 require(hydroGOF)
 
+# ----------------------------------
+# Calibration
 
+# Flow only
 for (i in 1:25 ){
   ET_sub1 <- extract.sub(paste(getwd(),"iterations/flowcalibration0912",sep="/"),
                          sb=i)
@@ -116,3 +119,34 @@ for (i in 1:25) {
   plot(ETdata_z$simulated, col="red", main = paste("subbasin",i))
   points(ETdata_z$observed,col="blue")
 }
+
+# ----------------------------------
+# Verification
+
+# Flow only
+for (i in 1:25 ){
+  ET_sub1 <- extract.sub(paste(getwd(),"iterations/verificationflow",sep="/"),
+                         sb=i)
+  
+  ET_sub1_z <- zoo(ET_sub1$ET, order.by=seq.Date(as.Date("2013-01-01"),
+                                                 as.Date("2014-12-31"),1))
+  
+  # subset a point, zoo data and select window
+  ET_obs1 <- ET_obs[ET_obs["Point"]==i,]
+  ET_obs1_z <- zoo(ET_obs1$ET,order.by=ET_obs1$Date)
+  ET_obs1_c <- window(ET_obs1_z,start=as.Date("2013-01-01"),end=as.Date("2014-12-31"))
+  
+  
+  # make some plots
+  plot(ET_sub1_z, col="red", main = paste("subbasin",i))
+  points(ET_obs1_c/8,col="blue")
+  
+  ET_all <- merge(ET_sub1_z,ET_obs1_c/8,all=F)
+  
+  summary_ETstats$KGE[i] <- KGE(ET_all[,1],ET_all[,2])  
+  summary_ETstats$NSE[i] <- NSE(ET_all[,1],ET_all[,2])
+}
+
+write.csv(summary_ETstats,"Iterations/verificationflow/summary_ETstats.csv",
+          row.names=F)
+

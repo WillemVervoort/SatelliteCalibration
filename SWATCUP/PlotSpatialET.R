@@ -22,6 +22,9 @@ vegsites <- read.csv("R:/PRJ-HPWC/SWAT_ETCalibration/InputData/VegSitesCoords.cs
 # setwd()
 setwd("R:/PRJ-HPWC/SWAT_ETCalibration/Cotter2017.PSO.SwatCup")
 
+# -------------------------------
+# Calibration
+
 # now read in the results
 sim_res <- read_table("iterations/FirstETCalibration/PSO.OUT/summary_stat.txt", skip=3)
 
@@ -202,6 +205,54 @@ print(gp)
 
 # now read in the results for eigth ET calibration (changed pars and 0.1 flow)
 sim_res <- read_table("iterations/9thETCalibration0912/PSO.OUT/summary_stat.txt", skip=3)
+
+# now link results to lat and longs of subbasins
+KGE_sub <- data.frame(long = subbasins[,3],
+                      lat = subbasins[,2],
+                      KGE = sim_res$KGE[2:26])
+
+NSE_sub <- data.frame(long = subbasins[,3],
+                      lat = subbasins[,2],
+                      NSE = sim_res$NS[2:26])
+
+
+# plotting
+gp <- ggplot(cotter, aes(x = long, y = lat)) + geom_polygon(fill="gray75") +
+  coord_equal()
+gp <- gp + geom_point(data = KGE_sub, aes(x = long, y = lat, col=KGE, 
+                                          size = KGE))
+gp <- gp + geom_point(data = vegsites, aes(x = Long, y = Lat), col="green") +
+  geom_text(data = vegsites, aes(x = Long, y = Lat,label=Site), vjust=-1)
+print(gp)
+
+# -------------------------------
+# verification
+
+# calibration only on flow
+# read in the stats
+sim_res <- read.csv("Iterations/verificationflow/summary_ETstats.csv")
+
+# now link results to lat and longs of subbasins
+KGE_sub <- data.frame(long = subbasins[,3],
+                      lat = subbasins[,2],
+                      KGE = sim_res$KGE)
+
+NSE_sub <- data.frame(long = subbasins[,3],
+                      lat = subbasins[,2],
+                      NSE = sim_res$NSE)
+
+
+# plotting
+gp <- ggplot(cotter, aes(x = long, y = lat)) + geom_polygon(fill="gray75") +
+  coord_equal()
+gp <- gp + geom_point(data = KGE_sub, aes(x = long, y = lat, col = KGE, 
+                                          size = KGE))
+gp <- gp + geom_point(data = vegsites, aes(x = Long, y = Lat), col="green") +
+  geom_text(data = vegsites, aes(x = Long, y = Lat,label=Site), vjust=-1)
+print(gp)
+
+# now read in the results for verification based on flow and ET calibration
+sim_res <- read_table("iterations/verificationwithET/PSO.OUT/summary_stat.txt", skip=3)
 
 # now link results to lat and longs of subbasins
 KGE_sub <- data.frame(long = subbasins[,3],
