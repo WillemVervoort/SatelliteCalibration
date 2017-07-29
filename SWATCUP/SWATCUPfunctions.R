@@ -100,7 +100,7 @@ organiseFlow <- function(df_in, st.date, end.date) {
 writeFun <- function(outfile, df_write, header = header, 
                      Flow = FALSE,
                      np = NULL, i = NULL, weight = 0.5) {
-  browser()
+  #browser()
   p <- grep("subbasin number",header)
   r <- grep("of data points", header, ignore.case=T)
   

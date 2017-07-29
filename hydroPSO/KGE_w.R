@@ -65,7 +65,7 @@ KGE_w.matrix <- function(obs, sim, weights = NULL,
       out <- sapply(1:ncol(obs), function(i,x,y) { 
         KGE[i] <- weights[i]*KGE.default( x[,i], y[,i], s=s, na.rm=na.rm, method=method, out.type=out.type, ... )
       }, x=sim, y=obs ) 
-      if (combine=TRUE)  {
+      if (combine==TRUE)  {
         out <- sum(out) 
       } else {
         names(out) <- colnames(obs)  
@@ -77,7 +77,7 @@ KGE_w.matrix <- function(obs, sim, weights = NULL,
       KGE[i] <- out[[i]][[1]]
       elements[,i] <- as.numeric(out[[i]][[2]])
     } # FOR end
-    if (combine=TRUE)  {
+    if (combine==TRUE)  {
       KGE <- sum(KGE) 
     } 
     out <- list(KGE.value=KGE, KGE.elements=elements)

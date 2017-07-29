@@ -18,16 +18,13 @@ require(zoo)
 ### ------------------------------------------------------------------------ ###
 ## Specifying the model dir
 model.drty <- "/project/RDS-FAE-HPWC-RW/PSO_Cotter"
-#model.drty <- "R:/PRJ-HPWC/SWAT_ETCalibration/PSO_Goodra"
 setwd(model.drty)
 
 
 
 
 ### Loading the scripts to extract modelled values---------------------------###
-
-source(paste(model.drty,"/Scripts/Hydromod_PSO.R", sep = ""))
-source(paste(model.drty,"/Scripts/RCH_extract.R", sep = ""))
+source(paste(model.drty,"/Scripts/sub_extract.R", sep = ""))
 
 
 ### Reading the observed values
@@ -59,9 +56,7 @@ model.FUN.args=list(
   gof.FUN.args = list(
     method="2012",
     out.type="single"
-  ),
-  gof.Ini = "2002-01-01",
-  gof.Fin = "2006-12-31"
+  )
   )
 
 ### Running the final algorithm ---------------------------------------------###
