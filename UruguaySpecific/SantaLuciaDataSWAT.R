@@ -67,5 +67,5 @@ write("19830101",
       ncolumns=1)
 write_delim(as.data.frame(cbind(round(maxT_z,2),round(minT_z,2))),
       path="t1.txt",
-      col_names = F, append = T)
+      col_names = F, append = T, delim=",")
 

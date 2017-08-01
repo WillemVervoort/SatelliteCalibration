@@ -92,7 +92,8 @@ Out_extract <- function(file_sub = "output.sub",
   #   group_by(Subbasin) %>%
   #   mutate(row = 1:n()) %>%
   #   spread(Subbasin, what)
-  rm(foo)
+  rm(list=c("foo","sub_out"))
+  
   sub_z <- zoo(sub_out2, order.by = seq.Date(as.Date(d.ini), as.Date(d.end), "day"))
   
   if (what == "ET") {
@@ -109,6 +110,7 @@ Out_extract <- function(file_sub = "output.sub",
     ET_sum <- zoo(ET_sum[,1:sb_t],order.by=r.dates)
     # merge with flow data
     out <- merge(flow_out,ET_sum, all=T)
+    rm(list=c("flow_out","ET_sum"))
   } else {
     out <- merge(flow_out,sub_z)
   }

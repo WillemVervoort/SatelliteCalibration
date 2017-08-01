@@ -27,10 +27,11 @@ create_obs_data <- function(data1, data2=NULL, d.ini, d.end) {
       data2_z <- zoo(data2[,-1],order.by=as.Date(data2$Date))
       # merge
       data3 <- merge(data1_z,data2_z, all = T)
+      rm(list=c("data1_z","data2_z"))
       out <- window(data3, start=as.Date(d.ini), end=as.Date(d.end))
     } else {
       out <- window(data1_z, start=as.Date(d.ini), end=as.Date(d.end))
-    }
+      }
   }
   return(out)
 }
