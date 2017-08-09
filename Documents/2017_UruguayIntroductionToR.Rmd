@@ -1,0 +1,508 @@
+---
+title: "R essentials for model calibration"
+author: "Willem Vervoort"
+date: "10 July 2017"
+output: 
+  pdf_document:
+    toc: true
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction  
+This is an introduction to R written for the "How do I use satellite and global reanalysis data for hydrological simulations in SWAT?" workshop in Montevideo between 7 - 11 August 2017. This work is based on earlier "introduction to R" practicals in units of study at the University of Sydney and an introduction to R course taught in Guernavaca, Mexico in 2014. It also builds on many of the introduction to R literature on the internet.  
+This course is not a complete introduction, and more in depth knowledge on R and the use of R can be gained from many courses on-line and by basic practice.  
+I hope that this course offers sufficient depth to help you engage in the rest of the course, which uses R for analysis of the output.
+
+This course covers simple R, basic statistics, data frame operations, reading in files and a plotting. The final part covers calibration of a simple hydrological model using the package hydromad, which is based on the unit LWSC3007 at the University of Sydney.
+
+\newpage
+
+# R as a modelling environment
+
+The origins of R are in statistics, so this is hat R does best. However, over time, it has proven to be a flexible language that can also be used quite effectively for programming and data science.
+
+## some intro about R  
+
+Spanish documentation on R is extensively available, for example: [Introduction to R](https://cloud.r-project.org/doc/contrib/R-intro-1.1.0-espanol.1.pdf) and via [datacamp](https://www.datacamp.com/community/open-courses/introduccion-a-r).  
+
+In this introduction I also have also relied on [R for Data Science](http://r4ds.had.co.nz/index.html), in particular chapter 4.  
+
+### Basic R  
+In its most basic form, R is a calculator 
+```{r calculator}
+3*5
+50/100 + 0.1
+10 - 20
+```
+
+The basic structure of R is based on objects, which are named. R is case sensitive, so keep this in mind. The main object we will use here is a *dataframe* or its modern variant the *tibble*.  
+  
+R uses "<-" to assign a value (or another object) to an object
+```{r objects}
+# assign
+x <- 5
+y <- 2
+```
+  
+You can call up what is stored in the object (inspect) again by just typing its name:  
+```{r inspectObj}
+x
+```
+
+These objects will show up in the "Environment" window in  Rstudio, or you can use `ls()` in the console to list the objects. The function `c()` can be used to stick things together into a vector. Redo the below commands in your own script.    
+```{r objects_in_R}
+# a vector
+x = c(1,2,5,7,8,15,3,12,11,19)
+# another vector
+y = 1:10
+# you have now two objects
+ls()
+# you can add, multiply or subtract
+z = x + y
+z
+zz = x * y
+zz
+zzz = x - y
+zzz
+foo = 0.5*x^2 - 3*x + 2
+foo
+```
+
+### A dataframe  
+A dataframe is a bit more complex, and here is a simple demonstration of its power.  
+```{r dataframe}
+Rainfall <- data.frame(City = c("Montevideo","New York", "Amsterdam","Sydney", "Moscow", "Hong Kong"),
+                       Rain_mm = c(950, 1174, 838, 1215, 707, 2400))
+Rainfall
+```
+
+As you can see a data.frame can mix character columns (City) and numeric columns (Rain_mm). Here I used `c()` to generate vectors which I put in the columns. In addition, the colummns have names, which you can access using `colnames()`:
+`r colnames(Rainfall)`  
+
+Once you have a dataframe, you can access parts of the dataframe or manipulate the dataframe.
+
+```{r workdf}
+# call a column
+Rainfall$City
+# or
+Rainfall["City"]
+# or
+Rainfall[,1]
+
+# find a row
+Rainfall[Rainfall["City"]=="Montevideo"]
+
+# see the first two rows
+Rainfall[1:2,]
+
+# find a subset
+lots <- Rainfall[Rainfall["Rain_mm"] > 1000,]
+lots
+```
+
+### Exercise
+
+Using the above examples, can you do the following?  
+
+- Extract the column with the rainfall values?  
+- Extract the row with the annual rainfall at Amsterdam?  
+- Which cities have rainfall below 1500 mm?  
+
+
+## The working directory  
+Generally R works from a "working directory". This is the directory on disk where it expects to find files or write files to. You can set this in Rstudio via the menu item "Session" --> "Set working directory", but you can also set this in code. Setting the working directory is useful when you want to access data in files on your computer or the network.
+
+The basic function to use is `setwd("path/to/file")`. The thing to note is that in the path description you have to use "forward /" rather than the standard windows "backward". 
+
+```{r workingdirectory}
+# set the working directory
+setwd("C:/users/rver4657/Documents")
+
+# see some of the files
+dir()[1:10]
+```
+
+## Reading data from different sources
+There are a multitude of functions to read data from the disk into the R memory, I will demonstrate only a few here.
+
+Because a lot of data is stored in comma delimited txt files (such as Excel exports), using `read.csv()` is a good standard option. 
+
+Here I am reading in some monthly data from the Concordia station in the Uruguay river in Argentina. This data was originally downloaded from the 
+[Global River Discharge Database]("https://nelson.wisc.edu/sage/data-and-models/riverdata/index.php")  
+```{r resetwd, echo=F}
+setwd("c:/users/rver4657/ownCloud/SouthSouthNetwork/Resources/IntroductionToR")
+```
+```{r read_csv}
+
+UR_flow <- read.csv("UruguayRiver_ConcordiaSt.csv")
+# check the first few lines (6 by default)
+head(UR_flow)
+```
+
+### Exercise  
+
+- Can you read in the file: "Parana_CorrientesSt.csv"?
+
+## Packages and library
+
+Much of the power in R comes from the fact that it is open source and this means many people write new code and share this code. The formal way to do this is via "packages", which, once checked and endorsed by the R community, appear in the CRAN repository as a **package**.
+
+Here we might want to use some of the features in the package [tidyverse](http://tidyverse.org/). The other package we will use later is the package [zoo](https://cran.r-project.org/web/packages/zoo/index.html)
+
+There are two components to using packages. The first is to make sure that the package is installed, for which we can use the function `install.packages()`. Note that the name of the package is a *string* so needs to between quotes `""`.  
+
+```{r installPackage, eval = F}
+install.packages("tidyverse")
+```
+
+If the package is installed in your personal library, you will need to load the package in R using `require()` or `library()`. There are subtle differences between these two functions, but they are currently not that important. Check the help files.
+
+```{r loadPackage}
+require(tidyverse)
+```
+
+### Exercise  
+
+- Can you load the package zoo? 
+
+## summarising data  
+It is often important to summarise data, for example we might want to know the average monthly flow or the standard deviation of flow. R of course have several functions to deal with this. 
+
+### standard statistical functions
+Here are some simple examples of standard statistical functions `mean`, `sd` and `cor` (and of course there are many more).
+
+```{r statfun}
+# average monthly flow
+mean(UR_flow$Flow)
+# st dev average flow
+sd(UR_flow$Flow)
+
+# subset two years and correlate
+flow1969 <- UR_flow[UR_flow$Year==1969,]
+flow1970 <- UR_flow[UR_flow$Year==1970,]
+
+cor(flow1969$Flow,flow1970$Flow)
+```
+
+### using aggregate()  
+Another useful function is `aggregate()`, which allows you to apply a function over data frame and particular across different factors. Here is an example of summing the Uruguay river flow by year.
+
+```{r aggregate_demo}
+# aggregate to annual flow
+(annual_flow <- aggregate(UR_flow,list(Year=UR_flow$Year),sum))
+
+```
+
+Note that the parentheses around the statement means that the result of the statement is printed. 
+
+### Exercise  
+
+- Can you calculate the standard deviation of the monthly flow by year?
+
+## if else and for loops
+Get this from Tom's older stuff
+Loops are essential in programming. There are a range of different types of loops, but here I will only demonstrate "if else" and "for". I have always been told that all other loops are just derivatives or short cuts.  
+An "if else" loop allows you to program a switch in the code.  
+Basically it is used to evaluate an expression if the statement is TRUE and to evaluate another expression if the statement is FALSE:  
+if (comparison) do this, else do that  
+You might call the above line "pseudo code". It is sometimes handy to first write something in pseudo code, basically you want to write in broad language what you want to happen.  
+You could also use only the "if" part, which means nothing happens if the statement is FALSE.  
+
+As an example I want to do:
+if (a data frame has more than 10 rows) write data frame is LONG, else write data frame is SHORT  
+```{r ifelseLoop}
+#We will first generate the data frame:
+x <- UR_flow
+# now wrote loop
+if (nrow(x) > 10) {
+	print("the dataframe is LONG")
+} else {
+	print("the dataframe is SHORT")
+}
+```
+  
+There are a few things to note here. I use the statement `nrow()` to check how many rows the data frame has. I use the statement `print()` to write something to the screen.
+
+### Exercise  
+
+- Try generating another data frame x and rerun the program, or change the program to get it to say "the dataframe is short".  
+
+R also has an `ifelse()` command. This is a vectorized version of the if command - which means that it can be used on vectors of data - the command is applied to each element (or value) of the vector in turn.  The if command only evaluates single values.  
+Using the ifelse command will return a vector of values, the same length as the longest argument in the expression.  
+Wherever possible, it is preferable to use the ifelse command rather than using the if command in combination with a loop - writing the program is more efficient and R evaluates vectorised functions more efficiently than it does loops. Here is an example which changes the program above  
+```{r vectorisedIfelse}
+x <- UR_flow 
+# add a column which identifies whether the flow < 5000
+x[,3] <- ifelse(x[,2] > 5000, "large", "small")
+# this creates a third column
+tail(x,20)
+```
+  
+I check in the second column of the data.frame whether the flows are greater than 5000 or not. I then write in the third column whether they are large or small numbers. 
+A more complex (nested) ifelse version would be:  
+```{r nestedifelse}
+x[,4] <- ifelse(x[,2] > 2500,ifelse(x[,2] > 10000, "large", "intermediate"), "small")
+tail(x,20)
+```
+  
+You can try out some of your own versions of this  
+
+## The "for" loop, getting the program to do something repeatedly
+Loops are used to repeat a set of commands.  Normally, there will be a variable which changes value in each successive loop through the commands.  Reference to this changing value results in differences in output from successive iterations. 
+
+The for loop is used when the number of required iterations is known before the loop begins.
+It is used in the following way:
+for (name in expression1) {expression2}
+
+* name is the name of the loop variable.  Its value changes during each iteration, starting with the first value and ending with the last value in expression1.
+* expression1 is a vector expression (often a sequence, such as 1:10).
+* expression2 is a command or group of commands that are repeatedly evaluated.  It usually contains references to name, which result in changes to the value of the expression as the value of name changes.  
+
+Here is the classic example of a loop  
+
+```{r helloworld}
+# Hello world
+for (i in 1:5) {
+	print(paste(i, "hello world"))
+}
+```
+Note the use of `paste()` to combine character vectors.  
+Here is another simple loop that tells you the first 5 values of the flow data.  
+```{r simple_loop}
+for (i in 1:5) {
+  print(paste(UR_flow$Flow[i], "is the flow (ML/day)"))
+}
+```
+  
+You can also nest loops, that is, embed one loop into another. Here is an example that prints both the year and the flow using the column names  in the dataframe.  
+```{r nested_loops}
+for (i in 1:5) {
+  for (j in c(1,3)) {
+  print(paste(UR_flow[i,j], colnames(UR_flow)[j]))
+  }
+}
+```
+
+### Exercise    
+
+- Write another program that includes a loop and a logical test  
+
+###Comparison and Logical Operators
+
+*Comparison operators return a true or false value:*  
+
+* ==	Equal to
+* >	Greater than
+* >=	Greater than or equal to 
+* <	Less than
+* <=	Less than or equal to  
+
+Comparison operators can be combined with logical operators to describe more complex conditions.  
+
+*Logical operators:*
+  
+* !	Not
+* |	or (used for vectors, with the ifelse command)
+* ||	or (used for single values)
+* &	and (used for vectors, with the ifelse command)
+* &&	and (used for single values)  
+  
+  
+### Exercise  
+
+Write a small program that uses comparison operators and a logical operator. 
+# Plotting using ggplot and using zoo
+
+R has many different plotting options, but recently ggplot2 appears to be the preferred option. One of the reasons for the support for ggplot2 is because it can also be used in Python.
+
+As a start I will first modify the UR_flow data to make this into a "zoo" data frame, which has a timeseries based index and helps with plotting.
+
+The function basically takes the data and links it to an index (such as the date). I first construct a vector of dates using the month and year from `UR_flow`.  
+
+```{r convertToZoo}
+require(zoo)
+UR_flow$Dates <- as.Date(paste(UR_flow$Year,UR_flow$Month,"01",sep="-"))
+UR_flow_z <- zoo(UR_flow$Flow, order.by = UR_flow$Dates)
+```
+
+Once we have this zoo data frame, it can be plotted quite easily with the basic plotting package.  
+
+```{r simplePlot, fig.cap="Demonstration of the simple plotting package in R"}
+plot(UR_flow_z)
+```
+
+Using ggplot2 is a bit more involved, and does not work well directly with zoo. So we need to go back to UR_flow.
+
+```{r zooPlot, fig.cap="Demonstration of the ggplot2 package in R"}
+p <- ggplot(UR_flow, aes(x=Dates, y = Flow)) + geom_line()
+print(p)
+```
+
+# Writing functions in R
+
+Until now you have used several functions in R that are part of packages or part of "core" R. However, another powerful element in R is the ability to write your own functions. There are two major advantages with writing functions:  
+
+1. They are easy to test, as they are contained. This is especially true if keep functions short.
+2. They are short cuts and repeatable and therefore limit the possibility of typos.
+
+Let's go back to the "hello world" example that we used in a loop earlier. We can write the same example in a function.  
+The first thing to do is to decide which inputs we want the function to use to create the output. In this case I suggest we might want to change how many times the function produces output (which was 5 in the earlier example) and the actual output text, which was "hello world" in the original function.
+
+The basic structure of a function is:  
+
+`NameOfFunction <- function(input1, input2,...) {`    
+ `doSomething <- ....`  
+ `return(doSomething)`  
+`}`
+
+Here is the hello world example:
+```{r helloFun}
+
+HW <- function(n, outtext) {
+ for (i in 1:n) {
+    print(outtext)
+  }
+  # return("nothing")
+}
+
+# test
+HW(5, "Hello World")
+# switch input by naming
+HW(outtext ="I can switch the inputs", n = 3)
+```
+
+Note that in this case the function produces output as part of its execution rather than returning an actual value (which is why I commented out the `return` statement). In the first example, you can see that you don't have to name the inputs if you keep the inputs in the same order as the defined function. R assumes that you mean `n = 5` and `outtext = "Hello world"`. In the second example I show that you can switch the inpurs if you name them and that the function allows you to choose different inputs.  
+
+### Exercise
+
+- Can you write a function that calculates y = a*x + b for different values of x, a and b?
+- Make the function return the output using return()
+
+# R for hydrological modelling (hydromad example)
+
+The below example is a bit more complex but demonstrates the power of packages, and how you can use R to do hydrological modelling using the package hydromad.
+
+The R package Hydromad is an add-in into R that deals specifically with hydrological modelling: <http://hydromad.catchment.org/>. It incorporates a range of models, and provides tools for calibration, validation and error checking.
+Installation of Hydromad can be a bit tricky, ask Willem for help if you want to install it on your personal computer:
+
+* In R, install a series of packages: 
+'install.packages(c("zoo", "latticeExtra", "polynom", "car", "Hmisc"))'  
+* Follow the instructions on: <http://hydromad.catchment.org/#installation> to install the main package  
+
+On difference in the plotting is that hydromad uses the package lattice rather than ggplot2 (which I demonstrated earlier). Maybe in the future this can be changed to ggplot2, but currently this is not a priority.
+This means that you will see the functions `xyplot()` and `levelplot` used.
+
+Once the package is installed, load it:
+```{r hydromad}
+require(hydromad)
+```
+
+And we will use the data from the Cotter river that come with the package
+```{r loadCotter, fig.cap = "plot of the data in the Cotter data set"}
+data(Cotter)
+xyplot(Cotter)
+```
+
+## GR4J
+
+GR4J is a simple conceptual rainfall-runoff model, developed in France. The associated paper is:
+Perrin, C., Michel, C., Andréassian, V., 2003. Improvement of a parsimonious model for streamflow simulation. Journal of Hydrology, 279(1-4): 275-289.
+
+The power of GR4J is that it only has 4 parameters, which you could also consider its limitation. However, the strategic choices within the structure means that the model is highly flexible and easy to fit to all kinds of streamflow data.
+
+![Structure of GR4J](GR4JStructure.png)
+
+## Defining the model  
+
+We now need to specify our first model. The beauty of hydromad is that there actually a range of different models that can be applied and these are discussed in much more detail in Andrews et al. (2011). We will just go through the specification of GR4j. The first model we will define is purely for illustration and is actually never fitted.  
+
+Note how in the hydromad function the soil moisture accounting (the water balance) component is defined by `sma` which in this case is `gr4j` and the routing component is defined separately as `routing = "gr4jrouting"` .  
+You could include different `sma` and different `routing`.
+The etmult is a multiplier to transform maximum temperature into potential ET (PET). This is because maximum daily temperature and PET are highly correlated with a slope of approximately 0.15.  
+
+```{r simplGR4JDef, fig.cap="Plot of GR4J with hypothetical parameters"}
+# specify a model structure (GR4J) with some arbritrary parameters
+CMod <- hydromad(Cotter[1:1000,], sma="gr4j", routing="gr4jrouting",etmult=0.15,
+                 x1 = 665, x2 = 10, x3 = 90, x4 = 3.8, 
+                S_0 = 0.6, R_0 = 0.7)
+# in other words, this model is purely arbitrary to demonstrate 
+# the different components
+xyplot(predict(CMod, return_state = TRUE, return_components = TRUE),
+       strip = FALSE, strip.left = TRUE)
+# plot this to show the components
+```
+
+This figure indicates the different components of the GR4J model. This includes the "effective rainfall" U, which is the rainfall minus the ET, the storage levels in the "production store" or soil bucket, the predicted ET from the soil bucket, the fast flow Xr and the slow flow Xd and finally the levels in the groundwater store.  
+Note the definition of the parameters x1, x2, x3 and x4 which relate to processes in the model, and it might be worth considering how these influence the model.
+
+**You can try changing the parameters and see if it changes the model.**  
+We can also ask for the parameters and the information that we have stored in the model object:  
+```{r printPar}
+print(CMod)
+```
+
+The first part of the output from the print statement indicates the SMA parameters that we have entered in the model. Here x1 is set to 665 mm and again the et multiplier is set to 0.15 to convert Maximum Temperature to potential ET. S_0 is just the initial storage level as a fraction of x1, this means the initial S is 0.6*665, you can check this on the figure. The default ranges for all parameters for all models can be found by entering: `hydromad.options()`
+
+The routing parameters relate to the x2 through x4 parameters and are listed in the second part of the output.
+```{r printCoef}
+coefficients(CMod)
+```
+
+## optimisation using hydromad  
+We now want to calibrate the model on some data, we will just take the first part of the data so we will use about 7 years
+
+```{r}
+# split the data to use for calibration 
+Data_Cal<- window(Cotter, start = "1970-01-01",end = "1975-12-31")
+```
+
+You can now start fitting the model, but this first means we have to give the model some ranges to fit for the parameters rather than single values. I have decided to fit all parameters. The choice of the ranges is somewhat arbitrary, but I have increased the range for x1 to be quite high.
+
+```{r}
+CMod <- hydromad(Data_Cal, sma="gr4j", routing="gr4jrouting",
+  etmult=c(0.05,0.5),x1 = c(1000,3000), x2 = c(-3,20), 
+  x3 =c(5,500), x4 = c(0.5,10), S_0 = 0.5, R_0 = 0.5)
+```
+
+Then using the function `fitByOptim` we can calibrate the model
+```{r}
+CotterFit <- fitByOptim(CMod,objective=~hmadstat("r.squared")(Q,X),
+                        samples=1000,method="PORT")
+```
+
+This fits the model using the "optim" routine in R to optimise the parameters in the model (see `?optim`).
+`optim()` is quite a complex function, but very useful for all types of optimisation problems. 
+The method `PORT` is one of the specific methods that can be used, but different other methods can be specified. Felix Andrews  (Andrews et al. 2011) suggests that this routine is preferred, but you could try another method. The standard `nelder mead` is a regular least squares optimisation.
+
+The fitting gives some output about the iterations it runs through and also possible warnings. You can ask for some information about the model:
+
+```{r}
+summary(CotterFit)
+```
+
+This returns the models fitted values and the different goodness of fit stats. Note that `r round(summary(CotterFit)$r.squared*100,2)` percent of the variation in the streamflow is being explained by this model based on the r^2^, which is really the NSE (Nash Sutcliffe Efficiency). 
+
+The other statistics are the relative bias (basically the mean error divided by the mean flow) which is about `r summary(CotterFit)$rel.bias`. The r.sq.sqrt is the r^2^ based on a square root transformation of the data, while the r.sq.log is the r^2^ based on a logarithmic transformation of the data. It is suggested that these two statistics are more indicative of the fit on the low flows, while the r^2^ is more indicative of the fit of the flow peaks (Bennett et al., 2013). So in this case the model seems to fit the low flows better than the high flows.  
+
+The fitted coefficients can be extracted separately by asking:  
+```{r}
+coef(CotterFit)
+```
+
+Now we need to check how good our fit actually is. We can plot the observed data with the predicted output and the rainfall to see how it looks visually, but this is just showing how we fitted the data.  
+```{r, fig.cap="Predicted and observed flow for Cotter for the calibration period"}
+# plot observed vs modelled with the rainfall (Figure 5)
+xyplot(CotterFit, with.P=TRUE, xlim=as.Date(c("1970-01-01", "1975-01-01")))
+```
+
+
+\center
+**END OF DOCUMENT**
+\center
+
+
+

@@ -1,0 +1,32 @@
+---
+title: 'Course Notes Advanced SWAT: setting up hydroPSO'
+author: "Willem Vervoort"
+date: "`r format(Sys.Date(),'%d-%m-%Y')`"
+output: 
+    pdf_document:
+      fig_width: 7
+      fig_height: 6
+      fig_caption: true
+---
+
+```{r setup, warning=F, message=F, echo=F}
+# root dir
+knitr::opts_knit$set(root.dir = 
+                       "R:/PRJ-HPWC/SWAT_ETCalibration")
+library(pander)
+library(knitr)
+```
+
+# Introduction  
+This document is heavily based on the original hydroPSO vignette from Rodrigo Rojas and Mauricio Zambrano-Bigiarini (2012). I have mainly added specific elements in relation to the calibration using ET.
+This means this document covers:
+
+- Setting up the basic hydroPSO parameter files  
+- Defining the specific objective function and functions to run hydroPSO  
+- Running the model on Windows versus Linux  
+- Extracting the results and plotting  
+- Introducing the different ET functions  
+- rerunning the model and extracting the results  
+
+hydroPSO is initially tricky to work with, but once you have it set up, it is quite easy to change the model input and rerun the model, or to run different models. The package can take full advantage of parallel computing and therefore is perfect for use on High Performance Computing systems.  
+
