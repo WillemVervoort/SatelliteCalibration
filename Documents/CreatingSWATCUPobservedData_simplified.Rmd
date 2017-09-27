@@ -55,10 +55,6 @@ head(ET_Data)
 ```
 
 
-
-
-
-
 # swatcup_ETformat
 This function encapsulates a few separate functions and uses them to write the input files for SWAT-CUP in the right format for both ET and flow data.
 It can write:  
@@ -81,7 +77,7 @@ This function takes the following input
 * weight: a single number or a vector indicating the weight of the flow data relative to the other input data. The objective function weights will be $weight*flow + \sum{weight/np*Obs_i}$  
 
 ```{r swatcup_ETformat}
-# Demonstrate: writing files for 2006 - 2011
+# Demonstrate: writing files for 2008 - 2011
 # read in flow data
 flowdata <- readRDS(file="data/SantaLucia.RDS")
 head(flowdata)
@@ -90,7 +86,7 @@ head(flowdata)
 
 # write observed_sub.txt
 swatcup_ETformat(ET_Data, df_flow = NULL, date.format = "%Y-%m-%d",
-                             "2006-01-01", "2011-12-31",
+                             "2008-01-01", "2011-12-31",
                  "data/observed_sub.txt" ,
                  "data/observed_sub.txt", 6, weight= 0.1)
 
@@ -107,7 +103,7 @@ swatcup_ETformat(ET_Data, df_flow = flowdata,
 # write observed_rch.txt
 swatcup_ETformat(flowdata,df_flow=NULL,
                  date.format = "%Y-%m-%d",
-                 "2006-01-01", "2011-12-31",
+                 "2008-01-01", "2011-12-31",
                  "data/observed_rch.txt" ,
                  "data/observed_rch.txt", 6, 
                  Flow = TRUE)
@@ -123,7 +119,7 @@ ET_w <- subbasin_data$Area/sum(subbasin_data$Area)*(1-f_w)
  # now try to write the file
 swatcup_ETformat(ET_Data, df_flow = flowdata,
                   date.format = "%Y-%m-%d",
-                  "2006-01-01", "2011-12-31",
+                  "2008-01-01", "2011-12-31",
                   "data/observed.txt" ,
                  "data/observed.txt", 14, 
                  Flow = TRUE, weight = w_in)
