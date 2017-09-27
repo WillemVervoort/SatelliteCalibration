@@ -8,12 +8,21 @@ output:
     toc_depth: 2
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup, warning=F, message=F, echo=F}
+root <- "c:/users/rver4657/owncloud/southsouthnetwork/resources"
+knitr::opts_knit$set(root.dir = paste(root,"UruguaySWAT/UruguayCourse",sep="/"))
+library(pander)
+library(knitr)
+library(ggplot2)
+```
+```{r logos, echo=F}
+include_graphics("../../satelliteCalibration/data/logos.png")
 ```
 
+
 # Introduction  
-This is an introduction to R written for the "How do I use satellite and global reanalysis data for hydrological simulations in SWAT?" workshop in Montevideo between 7 - 11 August 2017. This work is based on earlier "introduction to R" practicals in units of study at the University of Sydney and an introduction to R course taught in Guernavaca, Mexico in 2014. It also builds on many of the introduction to R literature on the internet.  
+This is an introduction to R written for the "How do I use satellite and global reanalysis data for hydrological simulations in SWAT?" workshop in Montevideo between 7 - 11 August 2017, jointly organised by the University of Sydney, IRI and INIA.  
+This work is based on earlier "introduction to R" practicals in units of study at the University of Sydney and an introduction to R course taught in Guernavaca, Mexico in 2014. It also builds on many of the introduction to R literature on the internet.    
 This course is not a complete introduction, and more in depth knowledge on R and the use of R can be gained from many courses on-line and by basic practice.  
 I hope that this course offers sufficient depth to help you engage in the rest of the course, which uses R for analysis of the output.
 
@@ -133,12 +142,9 @@ Because a lot of data is stored in comma delimited txt files (such as Excel expo
 
 Here I am reading in some monthly data from the Concordia station in the Uruguay river in Argentina. This data was originally downloaded from the 
 [Global River Discharge Database]("https://nelson.wisc.edu/sage/data-and-models/riverdata/index.php")  
-```{r resetwd, echo=F}
-setwd("c:/users/rver4657/ownCloud/SouthSouthNetwork/Resources/IntroductionToR")
-```
 ```{r read_csv}
 
-UR_flow <- read.csv("UruguayRiver_ConcordiaSt.csv")
+UR_flow <- read.csv("data/UruguayRiver_ConcordiaSt.csv")
 # check the first few lines (6 by default)
 head(UR_flow)
 ```
@@ -237,16 +243,16 @@ Wherever possible, it is preferable to use the ifelse command rather than using 
 ```{r vectorisedIfelse}
 x <- UR_flow 
 # add a column which identifies whether the flow < 5000
-x[,3] <- ifelse(x[,2] > 5000, "large", "small")
+x[,4] <- ifelse(x[,3] > 5000, "large", "small")
 # this creates a third column
-tail(x,20)
+tail(x,10)
 ```
   
 I check in the second column of the data.frame whether the flows are greater than 5000 or not. I then write in the third column whether they are large or small numbers. 
 A more complex (nested) ifelse version would be:  
 ```{r nestedifelse}
-x[,4] <- ifelse(x[,2] > 2500,ifelse(x[,2] > 10000, "large", "intermediate"), "small")
-tail(x,20)
+x[,5] <- ifelse(x[,3] > 2500,ifelse(x[,3] > 10000, "large", "intermediate"), "small")
+tail(x,10)
 ```
   
 You can try out some of your own versions of this  
@@ -276,6 +282,14 @@ Here is another simple loop that tells you the first 5 values of the flow data.
 for (i in 1:5) {
   print(paste(UR_flow$Flow[i], "is the flow (ML/day)"))
 }
+
+# or more complex:
+for (i in 1:5) {
+  print(paste("in Year", UR_flow$Year[i],"and month", 
+              UR_flow$Month[i], 
+              "the flow is", UR_flow$Flow[i], "(ML/day)"))
+}
+
 ```
   
 You can also nest loops, that is, embed one loop into another. Here is an example that prints both the year and the flow using the column names  in the dataframe.  
@@ -285,6 +299,7 @@ for (i in 1:5) {
   print(paste(UR_flow[i,j], colnames(UR_flow)[j]))
   }
 }
+
 ```
 
 ### Exercise    
@@ -410,11 +425,13 @@ xyplot(Cotter)
 ## GR4J
 
 GR4J is a simple conceptual rainfall-runoff model, developed in France. The associated paper is:
-Perrin, C., Michel, C., Andréassian, V., 2003. Improvement of a parsimonious model for streamflow simulation. Journal of Hydrology, 279(1-4): 275-289.
+Perrin, C., Michel, C., Andr?assian, V., 2003. Improvement of a parsimonious model for streamflow simulation. Journal of Hydrology, 279(1-4): 275-289.
 
 The power of GR4J is that it only has 4 parameters, which you could also consider its limitation. However, the strategic choices within the structure means that the model is highly flexible and easy to fit to all kinds of streamflow data.
 
-![Structure of GR4J](GR4JStructure.png)
+```{r GR4J_graphic, echo=F}
+include_graphics("../../satellitecalibration/data/GR4JStructure.png")
+```
 
 ## Defining the model  
 
@@ -499,7 +516,7 @@ Now we need to check how good our fit actually is. We can plot the observed data
 xyplot(CotterFit, with.P=TRUE, xlim=as.Date(c("1970-01-01", "1975-01-01")))
 ```
 
-
+\newpage
 \center
 **END OF DOCUMENT**
 \center

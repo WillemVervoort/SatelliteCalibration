@@ -1,0 +1,130 @@
+---
+title: 'Course Notes Advanced SWAT: creating SWAT-CUP input simplified'
+author: "Willem Vervoort"
+date: "`r format(Sys.Date(),'%d-%m-%Y')`"
+output: 
+    pdf_document:
+      fig_width: 7
+      fig_height: 6
+      fig_caption: true
+---
+
+```{r setup, warning=F, message=F, echo=F}
+# root dir
+root <- "c:/users/rver4657/owncloud/southsouthnetwork/resources"
+knitr::opts_knit$set(root.dir = paste(root,"UruguaySWAT/UruguayCourse",sep="/"))
+library(pander)
+library(knitr)
+library(ggplot2)
+include_graphics("../../satelliteCalibration/data/logos.png")
+```
+
+
+# Introduction  
+This is an introduction into developing SWAT CUP inout files using R, written for the "How do I use satellite and global reanalysis data for hydrological simulations in SWAT?" workshop in Montevideo between 7 - 11 August 2017, jointly organised by the University of Sydney, IRI (the University of Columbia) and INIA, Uruguay.
+
+\newpage
+
+# Functions to prepare SWAT-CUP files for the calibration and validation routine
+This file demonstrates the use of two auxillary functions to create input data for SWAT calibration in SWAT-CUP, which can be called by using:
+```{r sourceFunctions}
+source("functions/SWATCUPfunctions.R")
+```
+  
+There are 2 functions.  
+
+* `MODIS_ts()` to transform the MODIS data to a timeseries, we have seen this function already in the calibration of the rainfall runoff model. Here we use the same function.  
+* `swatcup_ETformat()` the function that generates the different files depending on the inputs given.
+
+# MODIS_ts
+This function reads the directory indicated by *MODISdir* and looks for files with the extension pattern given by *patt*. The output is a timeseries of values stacked for all the points that are available. There are 5 columns in the output:  
+
+* Year  
+* JDay (Julian Day)  
+* value (of actual ET in mm)  
+* Point (a number in the catchment)  
+* Date (the actual date in Y-m-d)
+
+```{r MODIS_ts}
+# demonstrate
+# Create a single file with all the MODIS ET data for all points
+ET_Data <- MODIS_ts("MODIS/SantaLucia")
+# show the data
+head(ET_Data)
+
+```
+
+
+
+
+
+
+# swatcup_ETformat
+This function encapsulates a few separate functions and uses them to write the input files for SWAT-CUP in the right format for both ET and flow data.
+It can write:  
+
+- observed.txt
+- observed_sub.txt
+- observed_rch.txt
+
+This function takes the following input
+
+* df, this is a data frame with flow data or ET data, the output of `MODIS_ts()`
+* df_flow this is an optional dataframe with flow data if df is ET data
+* date.format is a definition of the date format in case the date format in the flow data is incorrect
+* st.date: the starting date for the output
+* end.date: the end date for the output
+* outfile: the SWAT-CUP file you want to write
+* infile: the SWAT-CUP file you use as template
+* nlines: the number of lines in the header
+* Flow: a boolean indicating whether or not flow data is included
+* weight: a single number or a vector indicating the weight of the flow data relative to the other input data. The objective function weights will be $weight*flow + \sum{weight/np*Obs_i}$  
+
+```{r swatcup_ETformat}
+# Demonstrate: writing files for 2006 - 2011
+# read in flow data
+flowdata <- readRDS(file="data/SantaLucia.RDS")
+head(flowdata)
+# original Q is in m^3/sec
+# SWAT needs cumecs
+
+# write observed_sub.txt
+swatcup_ETformat(ET_Data, df_flow = NULL, date.format = "%Y-%m-%d",
+                             "2006-01-01", "2011-12-31",
+                 "data/observed_sub.txt" ,
+                 "data/observed_sub.txt", 6, weight= 0.1)
+
+
+
+# write observed.txt
+swatcup_ETformat(ET_Data, df_flow = flowdata,
+                 date.format = "%Y-%m-%d",
+                 "2006-01-01", "2011-12-31",
+                 "data/observed.txt" ,
+                 "data/observed.txt", 14, Flow = TRUE, 
+                 weight = 0.1)
+
+# write observed_rch.txt
+swatcup_ETformat(flowdata,df_flow=NULL,
+                 date.format = "%Y-%m-%d",
+                 "2006-01-01", "2011-12-31",
+                 "data/observed_rch.txt" ,
+                 "data/observed_rch.txt", 6, 
+                 Flow = TRUE)
+
+# Now test putting in weights relative to the size of the subcatchment
+subbasin_data <- read.csv("data/subbasins_SantaLucia_alldata.csv")
+
+# calculate weights from relative areas
+f_w <- 0.1 # flow weight
+ET_w <- subbasin_data$Area/sum(subbasin_data$Area)*(1-f_w)
+ w_in <- c(f_w, ET_w)
+
+ # now try to write the file
+swatcup_ETformat(ET_Data, df_flow = flowdata,
+                  date.format = "%Y-%m-%d",
+                  "2006-01-01", "2011-12-31",
+                  "data/observed.txt" ,
+                 "data/observed.txt", 14, 
+                 Flow = TRUE, weight = w_in)
+``` 
