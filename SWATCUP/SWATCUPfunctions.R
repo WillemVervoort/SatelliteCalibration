@@ -77,7 +77,6 @@ organiseFun <- function(df_in, st.date, end.date) {
 }
 
 organiseFlow <- function(df_in, st.date, end.date) {
-  
   df_in$JDay <- format.Date(df_in$Date, "%j")
   df_in$Year <- format.Date(df_in$Date, "%Y")
   df_in$Date <- as.Date(df_in$Date)
@@ -106,7 +105,7 @@ writeFun <- function(outfile, df_write, header = header,
   
   # writing the rch file
   if (regexpr("observed_rch.txt",outfile, fixed = T)[[1]]>0) {
-    header[p] <- paste("FLOW_OUT_1","     ", 
+    header[p] <- paste("FLOW_OUT_",i,"     ", 
                        substr(header[p], 11, nchar(header[p])),sep="")
     header[r] <- paste(nrow(df_write),substr(header[r], 6,
                                              nchar(header[r])),
@@ -115,7 +114,7 @@ writeFun <- function(outfile, df_write, header = header,
   
   # writing the observed.txt file
   if (regexpr("observed.txt",outfile, fixed=T)[[1]]>0 & Flow == TRUE) {
-    header[p] <- paste("FLOW_OUT_1", "    ", 
+    header[p] <- paste("FLOW_OUT_",i, "    ", 
                        substr(header[p], 11, nchar(header[p])),sep="")
     header[p + 1] <- paste(ifelse(length(weight) > 1,weight[1],weight),
                            "      ",substr(header[p + 1], 7, 
@@ -146,7 +145,8 @@ writeFun <- function(outfile, df_write, header = header,
                        sep = "     ")
   }
   # write to a file, but with a header
-  write(header[(p-1):(r+2)], file = outfile, append = T)
+  write(header[(p-1):(r+1)], file = outfile, append = T)
+  write("", file = outfile, append = T)
   write.table(df_write,file=outfile, sep = "   ",row.names = F, 
               col.names = F, quote = F,
               append = T)
@@ -198,4 +198,45 @@ swatcup_ETformat <- function(df, df_flow = NULL,
                weight=weight)
     }
   }
+}
+
+## Final overall function for multiple flows
+swatcup_MFformat <- function(df_flow,
+                             date.format = "%Y-%m-%d", 
+                             st.date, end.date, 
+                             outfile ,infile, nlines,
+                             weight = NULL){
+  # Here df_flow is a list of data_frames with flow data
+  # weight is a vector of the same length as df_flow, 
+  # or a single value, which is repeated
+  n <- length(df_flow) # number of flow data frames
+  if (length(weight) != n) {
+    if (sum(rep(weight,n)) != 1) {
+      stop("weights need to sum to unity")
+    } else weight <- rep(weight,n)
+  }
+  for (k in 1:n) {
+    df_flow[[k]]$Date <- as.Date(df_flow[[k]]$Date, 
+                                 format = date.format)
+  }
+  
+  # read in the header from the file
+  header <- readfun(infile, nlines)
+  # write the number of observed variables to the top
+  header[1] <- paste(n,"     : number of observed variables")
+  write(header[1:(grep("subbasin number",header) - 2)],
+        file = outfile)
+  # prepare the flow data
+    # use organiseflow
+  for (k in 1:n) {
+      df_input <- df_flow[[k]]
+      df_in2 <- organiseFlow(df_in = df_input,
+                             st.date, end.date)
+      # use writeFun
+      writeFun(outfile = outfile,
+               df_write = df_in2, header = header, Flow = TRUE, 
+               np = k, i = k,
+               weight = weight[k])
+    } 
+
 }
