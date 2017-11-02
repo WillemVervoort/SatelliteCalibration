@@ -31,7 +31,7 @@ PasoRoldanflow <- zoo(PasoRoldan[,4],
 PasoTroncosflow <- zoo(PasoTroncos[,4],
                       order.by=as.Date(PasoTroncos$fecha,"%d/%m/%Y"))
 
-
+# a quick plot to show the flow data
 plot_df <- rbind(data.frame(Date=time(PasoPacheflow), 
                             Flow = coredata(PasoPacheflow),
                             station = "PasoPache"),
