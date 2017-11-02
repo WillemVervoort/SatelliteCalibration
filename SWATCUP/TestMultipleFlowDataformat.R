@@ -72,14 +72,14 @@ saveRDS(flow_df,file=paste(datadir,"AllSantaLuciaFlowdata.RDS",sep="/"))
 setwd("../resources/UruguaySWAT/UruguayCourse/data")
 swatcup_MFformat(df_flow = flow_df[c(1:2,4:5)],
                  date.format = "%Y-%m-%d",
-                 "2008-01-01", "2011-12-31",
-                 "observed.txt" ,
-                 "observed.txt", nlines = 16, 
+                 st.date ="2008-01-01", end.date ="2011-12-31",
+                 infile = "observed.txt" ,
+                 outfile = "observed_test.txt", nlines = 16, 
                  weight = 0.25)
 
 swatcup_MFformat(df_flow = flow_df[c(1:2,4:5)],
                  date.format = "%Y-%m-%d",
-                 "2008-01-01", "2011-12-31",
-                 "observed_rch.txt" ,
-                 "observed_rch.txt", nlines = 6,
+                 st.date = "2008-01-01", end.date = "2011-12-31",
+                 infile = "observed_rch.txt" ,
+                 outfile = "observed_rch_test.txt", nlines = 6,
                  weight = 0.25)

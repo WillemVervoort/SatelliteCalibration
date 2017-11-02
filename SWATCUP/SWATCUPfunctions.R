@@ -76,15 +76,19 @@ organiseFun <- function(df_in, st.date, end.date) {
   return(df_out)
 }
 
-organiseFlow <- function(df_in, st.date, end.date) {
+organiseFlow <- function(df_in, st.date, end.date, name=NULL) {
   df_in$JDay <- format.Date(df_in$Date, "%j")
   df_in$Year <- format.Date(df_in$Date, "%Y")
   df_in$Date <- as.Date(df_in$Date)
-  df_in$cup_ID <- paste("FLOW_OUT_",df_in$JDay,"_",df_in$Year, sep = "")
+  #browser()
+  df_in <- df_in[order(df_in$Date),]
+  df_in$cup_ID <- paste(ifelse(length(name)==0,"FLOW_OUT_",name),
+                        df_in$JDay,"_",df_in$Year, sep = "")
   
   # subsetting the data
   df.sub <- subset(df_in, Date >= as.Date(st.date) & 
                      Date <= as.Date(end.date))
+  if (nrow(df.sub) == 0) stop("Your data set has no values after the start date")
   df.sub$Serial <- 1:nrow(df.sub)
   # Removing the NA values as SWAT-CUP does not deal with NA values
   df.sub <- na.omit(df.sub)
@@ -97,15 +101,16 @@ organiseFlow <- function(df_in, st.date, end.date) {
 
 # write fun
 writeFun <- function(outfile, df_write, header = header, 
-                     Flow = FALSE,
-                     np = NULL, i = NULL, weight = 0.5) {
+                     Flow = FALSE, 
+                     np = NULL, i = NULL, weight = 0.5, 
+                     infile_i = infile) {
   #browser()
   p <- grep("subbasin number",header)
   r <- grep("of data points", header, ignore.case=T)
   
   # writing the rch file
-  if (regexpr("observed_rch.txt",outfile, fixed = T)[[1]]>0) {
-    header[p] <- paste("FLOW_OUT_",i,"     ", 
+  if (regexpr("observed_rch.txt",infile_i, fixed = T)[[1]]>0) {
+    header[p] <- paste(ifelse(Flow==TRUE,"FLOW_OUT_",Flow),i,"     ", 
                        substr(header[p], 11, nchar(header[p])),sep="")
     header[r] <- paste(nrow(df_write),substr(header[r], 6,
                                              nchar(header[r])),
@@ -113,18 +118,20 @@ writeFun <- function(outfile, df_write, header = header,
   }
   
   # writing the observed.txt file
-  if (regexpr("observed.txt",outfile, fixed=T)[[1]]>0 & Flow == TRUE) {
-    header[p] <- paste("FLOW_OUT_",i, "    ", 
+  #browser()
+  if (regexpr("observed.txt",infile_i, fixed=T)[[1]]>0 & Flow != FALSE) {
+    header[p] <- paste(ifelse(Flow==TRUE,"FLOW_OUT_",Flow),i, "    ", 
                        substr(header[p], 11, nchar(header[p])),sep="")
-    header[p + 1] <- paste(ifelse(length(weight) > 1,weight[1],weight),
+    header[p + 1] <- paste(ifelse(length(weight) > 1,
+                                  round(weight[1],4),round(weight,4)),
                            "      ",substr(header[p + 1], 7, 
                                          nchar(header[p + 1])),sep="")
     header[r] <- paste(nrow(df_write),substr(header[r], 6,
                                              nchar(header[r])),
                        sep = "   ")
   } else {
-    if (regexpr("observed.txt",outfile, fixed=T)[[1]]>0 & Flow == FALSE) {
-      if (length(weight) > 1) w <- weight[i+1] else w <- (1-weight)/np
+    if (regexpr("observed.txt",infile_i, fixed=T)[[1]]>0 & Flow == FALSE) {
+      if (length(weight) > 1) w <- round(weight[i+1],4) else w <- round((1-weight)/np,4)
       header[p] <- paste("ET_", i,"     ", 
                          substr(header[p], 11, nchar(header[p])),sep="")
       header[p + 1] <- paste(round(w,4), "    ", 
@@ -137,7 +144,7 @@ writeFun <- function(outfile, df_write, header = header,
     } 
   }
   # writing observed_sub.txt
-  if (regexpr("observed_sub.txt",outfile, fixed=T)[[1]]>0) {
+  if (regexpr("observed_sub.txt",infile_i, fixed=T)[[1]]>0) {
     header[p] <- paste("ET_", i, "    ", 
                        substr(header[p], 11, nchar(header[p])),sep="")
     header[r] <- paste(nrow(df_write),substr(header[r], 6,
@@ -181,7 +188,7 @@ swatcup_ETformat <- function(df, df_flow = NULL,
     writeFun(outfile = outfile,
              df_write = df_in2, header = header, Flow = Flow, 
              np = NULL,
-             weight = weight)
+             weight = weight, infile_i = infile)
   }
   
   # running a loop through the number of points
@@ -195,35 +202,45 @@ swatcup_ETformat <- function(df, df_flow = NULL,
       writeFun(outfile = outfile,
                df_write = df_in2, header = header, Flow = FALSE, 
                np = length(unique(df$Point)), i = i, 
-               weight=weight)
+               weight=weight, infile_i = infile)
     }
   }
 }
 
-## Final overall function for multiple flows
-swatcup_MFformat <- function(df_flow,
+## Final overall function for multiple flows or nutrient data
+swatcup_MFformat <- function(df_flow, df_nutrient = NULL,
                              date.format = "%Y-%m-%d", 
                              st.date, end.date, 
                              outfile ,infile, nlines,
                              weight = NULL){
   # Here df_flow is a list of data_frames with flow data
-  # weight is a vector of the same length as df_flow, 
+  # and df_nutrient is an optional list of data frames with nutrient data
+  # weight is a vector of the same length as df_flow and df_nutrient, 
   # or a single value, which is repeated
   n <- length(df_flow) # number of flow data frames
-  if (length(weight) != n) {
-    if (sum(rep(weight,n)) != 1) {
+  flow_names <- names(df_flow)
+  #browser()
+  n1 <- length(df_nutrient) # number of nutrient data frames
+  if (length(weight) != (n + n1)) {
+    if (sum(rep(weight,(n + n1))) != 1) {
       stop("weights need to sum to unity")
-    } else weight <- rep(weight,n)
+    } else weight <- rep(weight,(n + n1))
   }
   for (k in 1:n) {
     df_flow[[k]]$Date <- as.Date(df_flow[[k]]$Date, 
                                  format = date.format)
   }
+  if (n1 > 0) {
+    for (l in 1:n1) {
+      df_nutrient[[l]]$Date <- as.Date(df_nutrient[[l]]$Date, 
+                                       format = date.format)
+    }
+  }
   
   # read in the header from the file
   header <- readfun(infile, nlines)
   # write the number of observed variables to the top
-  header[1] <- paste(n,"     : number of observed variables")
+  header[1] <- paste(n + n1,"     : number of observed variables")
   write(header[1:(grep("subbasin number",header) - 2)],
         file = outfile)
   # prepare the flow data
@@ -231,12 +248,30 @@ swatcup_MFformat <- function(df_flow,
   for (k in 1:n) {
       df_input <- df_flow[[k]]
       df_in2 <- organiseFlow(df_in = df_input,
+                             name = flow_names[k],
                              st.date, end.date)
       # use writeFun
       writeFun(outfile = outfile,
                df_write = df_in2, header = header, Flow = TRUE, 
                np = k, i = k,
-               weight = weight[k])
+               weight = weight[k], infile_i = infile)
     } 
-
+  # prepare the nutrient data
+  # use organiseflow
+  if (length(df_nutrient) > 0) {
+    nutrient_names <- names(df_nutrient)
+    for (k in 1:n1) {
+      df_input <- df_nutrient[[k]]
+      df_in2 <- organiseFlow(df_in = df_input, 
+                             name = nutrient_names[k],
+                             st.date, end.date)
+      # use writeFun
+      writeFun(outfile = outfile,
+               df_write = df_in2, header = header, Flow = "Nutrient_OUT_", 
+               np = k, i = k,
+               weight = weight[k + n], infile_i = infile)
+    } 
+    
+  }
+  
 }

@@ -48,7 +48,7 @@ This function takes the following input
 
 * df_flow, this is a list of data frames with flow data, which have two columns: "Date" and "Flow".
 * date.format is a definition of the date format in case the date format in the flow data is incorrect
-* st.date: the starting date for the output
+* st.date: the starting date for the output, **this needs to be within all the different data sets that you would like to use.**
 * end.date: the end date for the output
 * outfile: the SWAT-CUP file you want to write
 * infile: the SWAT-CUP file you use as template
@@ -74,7 +74,7 @@ flow_df <-
 # below is for SUFI2
 swatcup_MFformat(df_flow = flow_df,
                  date.format = "%Y-%m-%d",
-                 "2008-01-01", "2011-12-31",
+                 st.date ="2008-01-01", end.date ="2011-12-31",
                  outfile = "data/observed_MF.txt" ,
                  infile = "data/observed.txt", nlines = 16, 
                  weight = 0.2)
@@ -82,12 +82,47 @@ swatcup_MFformat(df_flow = flow_df,
 # write observed_rch.txt
 swatcup_MFformat(df_flow = flow_df,
                  date.format = "%Y-%m-%d",
-                 "2008-01-01", "2011-12-31",
-                 "data/observed_rch_MF.txt" ,
-                 "data/observed_rch.txt", nlines = 6,
+                 st.date ="2008-01-01", end.date ="2011-12-31",
+                 infile = "data/observed_rch_MF.txt" ,
+                 outfile = "data/observed_rch.txt", nlines = 6,
                  weight = 0.2)
 
 ```
+
+## Nutrient data  
+This same function `swatcup_MFformat` can also include nutrient data in combination with the flow data. So if you have nutrient data available for a catchment, you can create a similar list as for the flow data. This should be a simple list, where each individual nutrient is a separate data frame for each individual station.
+
+The example below demonstrates the function to include the flow and nutrient data at the Paso Pache station, but the nutrient data is only available between 2011 and 2015.
+
+```{r demonstrateMF_nutr}
+# Demonstrate: writing files for 2010 - 2015
+# read in the nutrient data
+nutrient_df <- 
+  readRDS(file = "data/SantaLuciaFlow/SantaLuciaNutrdata.RDS")
+
+
+# write observed.txt
+# FOR SUFI2 use nlines = 16, for PSO use nlines = 14
+# below is for SUFI2
+swatcup_MFformat(df_flow = flow_df[1],
+                 df_nutrient = nutrient_df[1:6],
+                 date.format = "%Y-%m-%d",
+                 st.date ="2010-01-01", end.date ="2015-12-31",
+                 outfile = "data/observed_nutr.txt" ,
+                 infile = "data/observed.txt", nlines = 16, 
+                 weight = c(0.5,rep(0.5/6,6)))
+
+# write observed_rch.txt
+swatcup_MFformat(df_flow = flow_df[1],
+                 df_nutrient = nutrient_df[1:6],
+                 date.format = "%Y-%m-%d",
+                 st.date ="2010-01-01", end.date ="2015-12-31",
+                 infile = "data/observed_rch.txt" ,
+                 outfile = "data/observed_rch_nutr.txt", nlines = 6,
+                 weight = c(0.5,rep(0.5/6,6)))
+
+```
+
 
 # MODIS_ts
 This function reads the directory indicated by *MODISdir* and looks for files with the extension pattern given by *patt*. The output is a timeseries of values stacked for all the points that are available. There are 5 columns in the output:  
@@ -121,7 +156,7 @@ This function takes the following input
 * df, this is a data frame with flow data or ET data, the output of `MODIS_ts()`
 * df_flow this is an optional dataframe with flow data if df is ET data
 * date.format is a definition of the date format in case the date format in the flow data is incorrect
-* st.date: the starting date for the output
+* st.date: the starting date for the output. **this needs to be within all the different data sets that you would like to use.**
 * end.date: the end date for the output
 * outfile: the SWAT-CUP file you want to write
 * infile: the SWAT-CUP file you use as template
