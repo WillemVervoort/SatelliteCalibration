@@ -162,11 +162,11 @@ swatcup_MFformat(df_flow = flow_df[c(1,4:5)],
                  outfile = "observed_test.txt", nlines = 16, 
                  weight = c(rep(0.5/3,3),rep(0.5/15,15)))
 
-swatcup_MFformat(df_flow = flow_df[c(1:2,4:5)],
+swatcup_MFformat(df_flow = flow_df[c(1,4:5)],
                  df_nutrient = nutrient_df,
                  date.format = "%Y-%m-%d",
                  st.date = "2008-01-01", end.date = "2015-12-31",
                  infile = "observed_rch.txt" ,
                  outfile = "observed_rch_test.txt", nlines = 6,
-                 weight = c(rep(0.125,4),rep(0.5/24,24)))
+                 weight = c(rep(0.5/3,3),rep(0.5/15,15)))
 

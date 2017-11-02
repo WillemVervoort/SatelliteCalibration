@@ -105,21 +105,21 @@ nutrient_df <-
 # FOR SUFI2 use nlines = 16, for PSO use nlines = 14
 # below is for SUFI2
 swatcup_MFformat(df_flow = flow_df[1],
-                 df_nutrient = nutrient_df[1:6],
+                 df_nutrient = nutrient_df[1:5],
                  date.format = "%Y-%m-%d",
                  st.date ="2010-01-01", end.date ="2015-12-31",
                  outfile = "data/observed_nutr.txt" ,
                  infile = "data/observed.txt", nlines = 16, 
-                 weight = c(0.5,rep(0.5/6,6)))
+                 weight = c(0.5,rep(0.5/5,5)))
 
 # write observed_rch.txt
 swatcup_MFformat(df_flow = flow_df[1],
-                 df_nutrient = nutrient_df[1:6],
+                 df_nutrient = nutrient_df[1:5],
                  date.format = "%Y-%m-%d",
                  st.date ="2010-01-01", end.date ="2015-12-31",
                  infile = "data/observed_rch.txt" ,
                  outfile = "data/observed_rch_nutr.txt", nlines = 6,
-                 weight = c(0.5,rep(0.5/6,6)))
+                 weight = c(0.5,rep(0.5/5,5)))
 
 ```
 
