@@ -60,6 +60,6 @@ if (!dir.exists("MODIS/SantaLucia")) {
 # # Now download data using MODISSubsets (This can take very long)
 MODISSubsets(LoadDat=coords, Product = "MOD16A2",
              Bands=c("ET_1km","ET_QC_1km"), StartDate=T, Size=c(0,0),
-             SaveDir="MODIS")
+             SaveDir="MODIS/SantaLucia")
 ```
 

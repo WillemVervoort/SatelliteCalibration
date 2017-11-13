@@ -15,9 +15,11 @@ knitr::opts_knit$set(root.dir =
                        "R:/PRJ-HPWC/SWAT_ETCalibration")
 library(pander)
 library(knitr)
+include_graphics("../../satelliteCalibration/data/logos.png")
 ```
 
-# Introduction  
+# Introduction
+This is part of a series of teaching document related to the "How do I use satellite and global reanalysis data for hydrological simulations in SWAT?" workshop in Montevideo between 7 - 11 August 2017, jointly organised by the University of Sydney, IRI (the University of Columbia) and INIA, Uruguay.  
 This document demonstrates the code to extract the results from the ET calibration of SWAT. In particular it demonstrates how to plot the individual ET comparison timeseries between predicted and observed from the model results. In addition, it demonstrates code how to plot the final performance of the ET calibration for locations in space across the catchment. This base code can be easily adapted to plot different performance measures or different output.
 
 # Extracting the timeseries and plotting

@@ -1,5 +1,5 @@
 ---
-title: "Course notes Advanced SWAT"
+title: "Course notes Advanced SWAT: Calibrating a rainfall-runoff model using ET data"
 author: "Willem Vervoort"
 date: "`r format(Sys.Date(),'%d-%m-%Y')`"
 output: 
@@ -9,13 +9,17 @@ output:
       fig_caption: true
 ---
 
-```{r setup, include=FALSE}
+```{r setup, warning=F, message=F, echo=F}
 knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_knit$set(root.dir = 
                        "R:/PRJ-HPWC/SWAT_ETCalibration/Uruguaycourse")
 library(pander)
 library(knitr)
+include_graphics("../../satelliteCalibration/data/logos.png")
 ```
+
+# Introduction
+This is part of a series of teaching document related to the "How do I use satellite and global reanalysis data for hydrological simulations in SWAT?" workshop in Montevideo between 7 - 11 August 2017, jointly organised by the University of Sydney, IRI (the University of Columbia) and INIA, Uruguay.  
 
 # Aims of this part of the course:  
 
