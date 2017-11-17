@@ -9,13 +9,13 @@ output:
       fig_caption: true
 ---
 
-```{r setup, warning=F, message=F, echo=F}
+```{r setup, warning=F, message=F, echo=F, eval=T}
 knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_knit$set(root.dir = 
                        "R:/PRJ-HPWC/SWAT_ETCalibration/Uruguaycourse")
 library(pander)
 library(knitr)
-include_graphics("../../satelliteCalibration/data/logos.png")
+include_graphics("../satelliteCalibration/data/logos.png")
 ```
 
 # Introduction
