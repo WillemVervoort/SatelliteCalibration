@@ -135,6 +135,9 @@ setwd("C:/users/rver4657/Documents")
 dir()[1:10]
 ```
 
+```{r reset_workdir,echo=F}
+setwd(paste(root,"UruguaySWAT/UruguayCourse",sep="/"))
+```
 ## Reading data from different sources
 There are a multitude of functions to read data from the disk into the R memory, I will demonstrate only a few here.
 
@@ -144,7 +147,7 @@ Here I am reading in some monthly data from the Concordia station in the Uruguay
 [Global River Discharge Database]("https://nelson.wisc.edu/sage/data-and-models/riverdata/index.php")  
 ```{r read_csv}
 
-UR_flow <- read.csv("data/UruguayRiver_ConcordiaSt.csv")
+UR_flow <- read.csv("Original data/UruguayRiver_ConcordiaSt.csv")
 # check the first few lines (6 by default)
 head(UR_flow)
 ```
@@ -210,7 +213,6 @@ Note that the parentheses around the statement means that the result of the stat
 - Can you calculate the standard deviation of the monthly flow by year?
 
 ## if else and for loops
-Get this from Tom's older stuff
 Loops are essential in programming. There are a range of different types of loops, but here I will only demonstrate "if else" and "for". I have always been told that all other loops are just derivatives or short cuts.  
 An "if else" loop allows you to program a switch in the code.  
 Basically it is used to evaluate an expression if the statement is TRUE and to evaluate another expression if the statement is FALSE:  

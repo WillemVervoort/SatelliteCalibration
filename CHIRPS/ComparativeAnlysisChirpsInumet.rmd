@@ -1,0 +1,463 @@
+---
+title: 'Advanced SWAT Course Notes: Comparative Analysis of CHIRPS data and INUMET data'
+author: "Willem Vervoort & Flora Mer"
+date: "`r format(Sys.Date(),'%d-%m-%Y')`"
+output:   
+    pdf_document:
+      fig_width: 7
+      fig_height: 6
+      fig_caption: true
+---
+
+```{r setup, echo=F, message=F, warning=FALSE}
+knitr::opts_knit$set(root.dir = 
+    "C:/Users/User/Documents/Uruguay/IRI-Inia/SWAT-GIS/Clima CHIRPS SubSantaLucia")
+library(formatR)
+library(knitr)
+knitr::opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+library(pander)
+```
+```{r logo, echo=F}
+include_graphics("../logos.png")
+options(timeout = 1800)
+```
+
+# Introduction
+This is part of a series of teaching documents related to the "How do I use satellite and global reanalysis data for hydrological simulations in SWAT?" jointly organised by the University of Sydney, IRI (the University of Columbia) and INIA, Uruguay.  
+
+This part explains a comparative analysis between CHIRPS data and INUMET data to  use as rainfall data.
+
+
+## INUMET Weather Station data
+
+The daily precipitation data from weather stations were delivered by the National Institue of Meteoroglogy in Uruguay (INUMET).
+
+# Download INUMET data 
+
+The following script will show :  
+
+- how to load the INUMET rainfall data  
+- how to select the stations with good amount of data  
+- how to convert UTM coordinates to latitute and longitude used by SWAT  
+- how to create a unique dataframe with all information needed for further analysis  
+
+```{r packages, message=FALSE,warning=FALSE}
+# Some useful packages to install
+library(tidyverse)
+library(zoo)
+library(rgeos)
+library(sp)
+library(rgdal)
+library(lubridate)
+```
+
+```{r inumetdata}
+# Read in the INUMET station locations 
+Stations <- read.csv("Precipitacion_SantaLucia_inumet_coordinates.csv")
+
+# Read in the precipitation data for each INUMET stations
+Pdata <- read.csv("Precipitacion SantaLucia_inumet_stations_prcp.csv", 
+                  na.strings="NaN",header=T,nrows=11322)
+
+
+Dates2 <- as.Date(paste(Pdata[,1],
+                        Pdata[,2],Pdata[,3],sep="-"))
+
+# Find the INUMET stations that have 90% of data after 2001
+Pdata_2000 <- Pdata[Dates2 >= "2000-01-01",]
+Pdata_2000 <- Pdata_2000[-(1:5),]
+result <- rep(0,(ncol(Pdata_2000)-3))
+for (i in 4:ncol(Pdata_2000)) {
+  result[i-3] <- sum(ifelse(is.na(Pdata_2000[,i]),1,0))/nrow(Pdata_2000)
+}
+
+# result indicates the fraction of NA data for the stations 
+# Throw out all the columns and rows where result >0.1
+Pdata_new <- Pdata_2000[,-(which(result>0.1)+3)]
+#Stations <- Stations[-which(result>0.1),]
+Dates2000 <- Dates2[Dates2 >= as.Date("2000-01-01")]
+
+
+# Zoo the Pdata (rainfall)
+Pdata_z <- zoo(Pdata_new[,4:ncol(Pdata_new)], order.by = Dates2000, frequency=1)
+head(Pdata_z)
+
+
+# convert UTM to latlong
+
+Stat_UTM <- SpatialPoints(cbind(Stations$X_UTM,Stations$Y_UTM), 
+                          proj4string=CRS("+proj=utm +zone=21 +south +datum=WGS84 +units=m +no_defs"))
+longlatcoor<-spTransform(Stat_UTM,CRS("+proj=longlat +datum=WGS84 +no_defs"))
+elev <- rep(50.00,nrow(Stations))
+
+
+# create a dataframe for the stations file with the following columns: 
+#Stations name, Latitute, Longitude, Elevation
+foo <- data.frame(colnames(Pdata_z), 
+                  round(coordinates(longlatcoor)[,2], 2),
+                  round(coordinates(longlatcoor)[,1], 2),
+                  round(elev,2))
+colnames(foo) <- c("Stations", "Lat","Long","Elev")
+head(foo)
+
+
+#create a list for each inumet station witn Longitude, Latitude, Precipitation data 
+outlist <- list()
+
+for(i in 1:ncol(Pdata_z)) {
+  outlist[[i]] <- list(x = foo$Long[i],
+                       y = foo$Lat[i],
+                       prcp = Pdata_z[,i])
+  
+  }
+
+names(outlist) <- colnames(Pdata_z)
+#show the element of the list for Inumet station number 1
+str(outlist[[1]])
+
+#test the loop by plotting precipitation data against time for Inumet station number 1
+plot(outlist[[1]]$prcp, main="Precipitation for Inumet station 1", xlab="Year", ylab="Prcp (mm)")
+
+
+```
+
+
+## CHIRPS data
+CHIRPS is a quasi global 30 year data set: [Climate Hazards Group InfraRed Precipitation with Station data](http://chg.geog.ucsb.edu/data/chirps/) derived from blending satellite data and observational data. As a result this could be a good replacement of station input data in catchments were station data is lacking or missing. In addition it can deliver a better spatial coverage of rainfall data. 
+# download CHIRPS data
+
+To download the CHIRPS data, refer to the document "Advanced SWAT Course Notes: Downloading and managing CHIRPS data".
+
+
+# read CHIRPS data
+
+Once you followed the instruction of the document "Advanced SWAT Course Notes: Downloading and managing CHIRPS data", you would be able to load the CHIRPS data selected in R. 
+Then, we will add dates to the CHIRPS data. 
+
+```{r chirpsdata}
+
+# Load the CHIRPS data in rds format
+chirpsSL<- readRDS("output.rds", refhook = NULL)
+
+# insert the dates for the CHIRPS data and make zoo
+
+C_dates <- seq.Date(as.Date("2000-01-01"), as.Date("2017-09-30"), by=1)
+
+```
+
+## Correlation analysis betweent CHIRPS data and INUMET data
+
+We want to make a comparitive analysis of all CHIRPS data against all INUMET data based on pentads. This comparison will help us to understand how representative is the CHIRPS data relative to the local INUMET stations. 
+The fist step is to write some functions to create pentad precipitation data: 
+```{r require, message=F,warning=F}
+
+# You need to define the series of days (the pentads)
+# So we want to write a function that generates the pentads for each year
+# then we want to aggregate on the pentads
+require(epiR)
+```
+
+```{r pentad}
+# bunch of functions to create pentad
+pentad_fun <- function(Date) {
+  d <- seq.Date(as.Date(Date), as.Date(Date) + days_in_month(as.Date(Date)),by=5)
+  d1 <- d[1:(length(d)-1)] # need to not have the last day
+}
+
+long_pentad <- function(startDate, endDate) {
+  months <- seq.Date(as.Date(startDate), as.Date(endDate), by="month")
+  pentads <- sapply(months,pentad_fun)
+  out <- c(do.call(c,pentads),as.Date(endDate))
+  return(out)
+}
+
+rep_fun <- function(x) {
+  out <- sort(rep(x,times=c(diff(x),1)))
+  return(out)
+}
+
+```
+
+The second step is to create a loop to calculate correlation between each INUMET station and each CHIRPS point
+```{r corr}
+
+# loop to calculate correlation between each inumet point and each chirps point
+# create first the output table
+cor1<- matrix(0,nrow=length(chirpsSL),ncol=nrow(foo))
+
+result <- data.frame(Long= numeric(length = length(chirpsSL)),Lat= numeric(length = length(chirpsSL)) , cor1) 
+
+#fill the table output with the loop
+
+for(j in 1:nrow(foo)) {
+  for (i in 1:length(chirpsSL)){
+    c_precip <- zoo(chirpsSL[[i]]$prcp, order.by = C_dates) 
+    
+    # merge in a same table precipitation data from INUMET and precipitation data from CHIRPS
+    test_merge <- merge.zoo(c_precip,outlist[[j]]$prcp,all=F)
+
+    
+    # now apply the pentad function
+    chirps_pentad <- rep_fun(long_pentad(time(test_merge)[1],
+                                          time(test_merge)[nrow(test_merge)]))
+
+
+    # now aggregate the data 
+    chirps_rain_pentad <- aggregate(coredata(test_merge),
+                                    list(pentad=chirps_pentad),
+                                    sum)
+
+    # calculate correlation between CHIRPS pentad precipitation and INUMET pentad precipitation
+    result[i,j+2] <- cor(chirps_rain_pentad[,2],chirps_rain_pentad[,3],use="complete.obs")
+    result$Long[i] <- chirpsSL[[i]]$x
+    result$Lat[i] <- chirpsSL[[i]]$y
+  }
+}
+```
+
+Once we calculate the correlation, we can plot the results. Here is a plot example of the result.The plot can be done for each INUMET station (changing X1 by X2,...).  
+```{r corrplot}
+#ggplot of the correlation of INUMET station X1 against all CHIRPS data
+ggplot(result, aes(x=Long, y=Lat))+ geom_point(aes(colour=X1)) +
+  scale_color_gradientn(colours=rainbow(5))
+
+```
+
+The plot shows the correlation between one INUMET station, the station X1, and all CHIRPS data of the catchment. The correlation values are varying from 0.72 to 0.77 accross the catchment.      
+
+## Spatial auto-correlation analysis betweent CHIRPS data and INUMET data
+The next question we want to answer is what is the space time variation in rainfall accross the catchment and is this different based on the INUMET stations and the CHIRPS data. To analyse the spatial variation accross the catchment, we used the Moran's I. 
+We did 2 different calculation using the Moran's with the 2 sets of precipitation data (INUMET & CHIRPS):
+
+1- at daily step    
+2- at seasonal step   
+
+# Moran's I at daily step using INUMET precipitation data 
+We calculate the Moran's I for all INUMET precipitation data accross the catchment using daily step precipitation accross year. The result will show one Moran's I for each day accross years. 
+The script is the following:
+
+```{r morandailyinumet}
+
+#Calculate Moran's I accross year for INUMET stations
+#package required and library
+#install.packages("ape")
+library(ape)
+
+# create an empty vector
+moran_inumet <-rep(0,nrow(Pdata_z))
+
+#in foo, clear elevation column which will be replace by precipitation for one day 
+#and repeat that for all day 
+foo<-foo[,-4]
+
+#need to generate a matrix of inverse distance weights to calculate Moran's I
+inumet.dists <- as.matrix(dist(cbind(foo$Long, foo$Lat)))
+
+inumet.dists.inv <- 1/inumet.dists
+diag(inumet.dists.inv) <- 0
+
+inumet.dists.inv[1:14, 1:14] # 14 represents the number of rows within foo
+
+# loop to rearrange foo data (which are INUMET data) and calculate Moran's I
+for ( i in 1:nrow(Pdata_z)) {
+  
+  #rearrange foo by transposition 
+  foo$prcp <- t(Pdata_z[i,])
+  if (all(foo$prcp == 0,na.rm=T)){
+    moran_inumet[i] <- NA
+  } else {
+    # calculate Moran's I for each day 
+    moran_inumet[i]<- Moran.I(foo$prcp[,1], inumet.dists.inv,na.rm=T)$observed
+  }
+}
+
+moran_i_z <- zoo(moran_inumet,order.by=time(Pdata_z))
+
+#plot moran indice against time 
+plot(moran_i_z,type="l", xlab="Year", ylab="Moran's I", 
+     main="Inumet Spatial Auto-correlation accross Year")
+```
+The plot shows the spatial variability of INUMET rainfall observation accross catchment and accross time. The Moran's I is pretty low which means there is high variability of precipitation data accross the catchment. 
+
+# Moran's I at seasonal step using INUMET precipitation data
+
+Then, we calculate the Moran's i at seasonal step to see if the autocorrelation for INUMET stations is variable accross the seasons.  
+The script is the following:
+
+```{r moranseasoninumet}
+# Calculate Moran's I for each season - aggregate date of each season 
+# generating a function to put together data into each season
+season <- sapply(time(moran_i_z),
+                           function(x) ifelse(month(x) > 11 || month(x) < 3 , "Summer", 
+                                            ifelse(month(x) < 5 , "Autumn",
+                                              ifelse(month(x) < 8, "Winter","Spring"))))
+#create a new data frame by season
+moran_season <- data.frame(m=coredata(moran_i_z),season=season)
+
+# boxplot of Moran's I for each season 
+pl <- ggplot(moran_season, aes(season,m)) + geom_boxplot()
+pl
+
+# statistical parameters
+summary(lm(m~season,data=moran_season))
+
+
+```
+
+The boxplot and the p-value within the summary show that there is no significative variation accross the season using INUMET data. For every season it shows a quite high variation of precipitation data.
+So, to try another analysis and be able to find some difference accross season, we calculate the number of day where Moran's I is superior or inferior to a specific value for each season. The script is the following: 
+
+
+```{r morandailyinumetaggregate}
+
+#aggregate number of day where Moran's I is superior or inferior to a specific value
+# index value less than 0
+LessThan0 <- aggregate(moran_season$m,list(season=moran_season$season),
+                       function(x) sum(ifelse(x<=0,1,0),na.rm=T))
+colnames(LessThan0)[2] <- "NumberDaysAutocorr<0"
+pander(LessThan0)
+
+# index value more than 0.2
+MoreThan0.2<- aggregate(moran_season$m,list(season=moran_season$season),
+          function(x) sum(ifelse(x>0.2,1,0),na.rm=T))
+colnames(MoreThan0.2)[2] <- "NumberDaysAutocorr>0.2"
+pander(MoreThan0.2)
+
+```
+Looking at the results, spring has the higher number of day where Moran's I is inferior to 0. This could mean that this season has the most variable precipitation accross space. However, spring (in addition to automn) is also the season where there is the higher number of day where Moran's I is greater or equal to 0.2, which is saying that spring also has the most auto-correlate precipitation values accross space. So, with those first analysis regarding seasonality, it is hard to make a clear conclusion.   
+
+
+# Moran's I at daily step using CHIRPS data
+We will do the same analysis as above but with the CHIRPS data. 
+The script is the following:
+
+```{r morandailychirps}
+#Calculate Moran's I accross year with chirps data
+# some packages required
+require(tidyverse)
+require(zoo)
+
+# As chirpsSL is a list, we need to convert prcp from a list into a dataframe
+# first extract the prcp elements into a list
+SLprcp <- chirpsSL %>% map("prcp")
+#is.list(SLprcp) # to be sure prcp is a list
+SLprcp_df <- as.data.frame(do.call(cbind,SLprcp))
+
+# second extract the lat and long elements into a dataframe
+SLlon<- chirpsSL%>% map("x")
+SLlon_df <- as.data.frame(do.call(c,SLlon))
+str(SLlon_df)
+
+SLlat<- chirpsSL %>% map("y")
+SLlat_df <- as.data.frame(do.call(c,SLlat))
+str(SLlat_df)
+
+#need to generate a matrix of inverse distance weights to calculate Moran's I
+chirps.dists <- as.matrix(dist(cbind(SLlon_df[,1], SLlat_df[,1])))
+
+chirps.dists.inv <- 1/chirps.dists
+diag(chirps.dists.inv) <- 0
+# to have a look at the matrix
+chirps.dists.inv[1:5, 1:5] 
+
+# loop to rearrange chirpsSL data and calculate Moran's I
+moran_chirps <-rep(0,nrow(SLlon_df))
+
+for ( i in 1:length(SLprcp_df)) {
+  
+  #rearrange chirps data
+  #SLprcp_df <- t(Pdata_z[i,])
+  if (sum(ifelse(SLprcp_df[i,] > 0,1,0))<1){
+    moran_chirps[i] <- NA
+  } else {
+    # caculate Moran's I for each day 
+    moran_chirps[i]<- Moran.I(as.numeric(SLprcp_df[i,]), chirps.dists.inv,na.rm=T)$observed
+  }
+}
+Dates <- seq.Date(as.Date("2000-01-01"),as.Date("2017-09-30"),by=1)
+
+moran_chirps_i_z <- zoo(moran_chirps,order.by=Dates)
+
+#plot Moran's I against time for chirps data
+plot(moran_chirps_i_z,type="l", xlab="Year", ylab="Moran's I", main="CHIRPS Spatial Auto-correlation accross Year")
+
+#plot Moran's I for one year 
+plot(moran_chirps_i_z[1:365],type="p", xlab="Month", ylab="Moran's I", main= "CHIRPS Spatial Auto-correlation for one year")
+```
+The plot shows us the spatial variability accross year for CHIRPS data accross the catchment is quite high (generally higher than with INUMET data) as the Moran auto-correlation index is low. However, there is no inverse correlation (Moran'I <0) as it was the case with INUMET data. 
+
+If we look at the plot of Moran's I for one year, we can see that the daily precipitation pattern is quite different accross the catchment.
+
+# Moran's I at seasonal step using CHIRPS data
+As we did the analysis with INUMET data, we will also have a look at the seasonal variability pattern of CHIRPS data. 
+
+```{r moranseasonchirps}
+# Calculate Moran's I with CHIRPS for each season - aggregate date of each season
+
+# generating a function to put together data into each season
+season_chirps <- sapply(time(moran_chirps_i_z),
+                 function(x) ifelse(month(x) > 11 || month(x) < 3 , "Summer", 
+                                    ifelse(month(x) < 5 , "Autumn",
+                                           ifelse(month(x) < 8, "Winter","Spring"))))
+#create new data frame by season
+moran_chirps_season <- data.frame(m=coredata(moran_chirps_i_z),season=season_chirps)
+
+# boxplot of Moran's I for each season 
+pl_chirps <- ggplot(moran_chirps_season, aes(season_chirps,m)) + geom_boxplot()
+pl_chirps
+# statistical parameters
+
+summary(lm(m~season,data=moran_chirps_season))
+```
+
+The boxplot and the p-value within the summary show there is no significative variation accross the season using CHIRPS data. However, comparing to INUMET data the Moran's index is always higher than 0. 
+
+We calculate the mean and the standard deviation for each season with the following script to have a better idea about the exact values: 
+
+```{r moranseasonchirpsmeansd}
+# Mean
+Mean<-aggregate(moran_chirps_season$m,list(season=moran_chirps_season$season),mean,na.rm=T)
+colnames(Mean)[2] <- "MeanAutocorr"
+pander(Mean)
+
+# Standard deviation
+Standarddeviation<-aggregate(moran_chirps_season$m,
+                             list(season=moran_chirps_season$season),sd,na.rm=T)
+colnames(Standarddeviation)[2] <- "Standard deviation Autocorr"
+pander(Standarddeviation)
+```
+
+Mean values and standard derivation values are not that different regarding seasonality. 
+
+Below, we calculate the number of day where Moran's I is superior or inferior to a specific value for each season. The script is the following: 
+
+```{r moranseasonchirpsaggregate2}
+
+#aggregate number of day where Moran's I is superior or inferior to a specific value
+# index value less than 0.1
+LessThan0.1<-aggregate(moran_chirps_season$m,list(season=moran_chirps_season$season),
+          function(x) sum(ifelse(x<0.1,1,0),na.rm=T))
+colnames(LessThan0.1)[2] <- "LessThan0.1AutoCorr"
+pander(LessThan0.1)
+# index value more than 0.3
+MoreThan0.3<-aggregate(moran_chirps_season$m,list(season=moran_chirps_season$season),
+          function(x) sum(ifelse(x>0.3,1,0),na.rm=T))
+colnames(MoreThan0.3)[2] <- "MoreThan0.3AutoCorr"
+pander(MoreThan0.3)
+
+```
+It shows the same kind of pattern than with INUMET data. Spring is at the same time showing the higher number of days with low autocorrelation (high variability) but also the higher number of day with higher autocorrelation (less variability).  
+Spring could be the season where the rainfalls are more convective. This element would need to be confirm with meteorology expert in Uruguay. 
+
+The following script line is plotting histogram for the 4 seasons. 
+
+```{r moranseasonchirpsaggregate}
+
+# histogram
+seasons <- unique(moran_chirps_season$season)
+for (i in 1:4) {
+    hist(moran_chirps_season$m[moran_chirps_season$season==seasons[i]],
+       main=seasons[i], xlab = "Moran's I")
+}
+```
+The histogram for each season is showing how Moran's I values are frequent. Those results confirm the high variability of Moran's I accross seasons. 

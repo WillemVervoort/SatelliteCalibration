@@ -97,7 +97,7 @@ PasoTroncosNutr_z <- zoo(PasoTroncosNutr[,3:7], order.by = as.Date(PasoTroncosNu
 PasoTroncosflow_z <- zoo(flow_df[[4]][,2], order.by=flow_df[[4]][,1])
 # merge on common dates
 PasoTroncos_m <- merge(PasoTroncosNutr_z,PasoTroncosflow_z,all=F)
-# multiply nutrients by flow, but convert flow to L/day an to kg
+# multiply nutrients by flow, but convert flow to L/day and to kg
 # m3/sec -> L/day: 86400*cumecs/1000
 # mg -> kg -> weight/1E06
 PasoTroncos_new <- apply(PasoTroncos_m[,1:5],2,
