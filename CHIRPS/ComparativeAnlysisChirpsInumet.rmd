@@ -28,11 +28,11 @@ This is part of a series of teaching documents related to the "How do I use sate
 This part explains a comparative analysis between CHIRPS data and INUMET data to  use as rainfall data.
 
 
-## INUMET Weather Station data
+# INUMET Weather Station data
 
 The daily precipitation data from weather stations were delivered by the National Institue of Meteoroglogy in Uruguay (INUMET).
 
-# Download INUMET data 
+## Download INUMET data 
 
 The following script will show :  
 
@@ -74,7 +74,7 @@ for (i in 4:ncol(Pdata_2000)) {
 # result indicates the fraction of NA data for the stations 
 # Throw out all the columns and rows where result >0.1
 Pdata_new <- Pdata_2000[,-(which(result>0.1)+3)]
-#Stations <- Stations[-which(result>0.1),]
+Stations <- Stations[-which(result>0.1),]
 Dates2000 <- Dates2[Dates2 >= as.Date("2000-01-01")]
 
 
@@ -122,14 +122,14 @@ plot(outlist[[1]]$prcp, main="Precipitation for Inumet station 1", xlab="Year", 
 ```
 
 
-## CHIRPS data
+# CHIRPS data
 CHIRPS is a quasi global 30 year data set: [Climate Hazards Group InfraRed Precipitation with Station data](http://chg.geog.ucsb.edu/data/chirps/) derived from blending satellite data and observational data. As a result this could be a good replacement of station input data in catchments were station data is lacking or missing. In addition it can deliver a better spatial coverage of rainfall data. 
-# download CHIRPS data
+## download CHIRPS data
 
 To download the CHIRPS data, refer to the document "Advanced SWAT Course Notes: Downloading and managing CHIRPS data".
 
 
-# read CHIRPS data
+## read CHIRPS data
 
 Once you followed the instruction of the document "Advanced SWAT Course Notes: Downloading and managing CHIRPS data", you would be able to load the CHIRPS data selected in R. 
 Then, we will add dates to the CHIRPS data. 
@@ -145,7 +145,7 @@ C_dates <- seq.Date(as.Date("2000-01-01"), as.Date("2017-09-30"), by=1)
 
 ```
 
-## Correlation analysis betweent CHIRPS data and INUMET data
+# Correlation analysis betweent CHIRPS data and INUMET data
 
 We want to make a comparitive analysis of all CHIRPS data against all INUMET data based on pentads. This comparison will help us to understand how representative is the CHIRPS data relative to the local INUMET stations. 
 The fist step is to write some functions to create pentad precipitation data: 
@@ -217,22 +217,49 @@ for(j in 1:nrow(foo)) {
 
 Once we calculate the correlation, we can plot the results. Here is a plot example of the result.The plot can be done for each INUMET station (changing X1 by X2,...).  
 ```{r corrplot}
-#ggplot of the correlation of INUMET station X1 against all CHIRPS data
-ggplot(result, aes(x=Long, y=Lat))+ geom_point(aes(colour=X1)) +
-  scale_color_gradientn(colours=rainbow(5))
+#ggplot of the correlation of INUMET station X1 against all CHIRPS data in the catchment
+# Load in catchment shape
+SL <- readOGR("sl_shape/subcuencaSantaLuciahastariostaluciachico.shp")
 
+pl <- ggplot(result, aes(x=Long, y=Lat)) + geom_polygon(data = SL, 
+                                                        aes(x = long, y = lat, group = group), 
+                                                        colour = "black", fill = NA) +
+  coord_equal() +
+  #add result of correlation
+  geom_point(aes(colour=X1)) +
+  scale_color_gradientn(colours=rainbow(5)) +
+  # add inumet station location
+  geom_point(data=foo[1,], aes(colour=X1), colour="black",size=4,fill=NA)
+
+pl
 ```
 
-The plot shows the correlation between one INUMET station, the station X1, and all CHIRPS data of the catchment. The correlation values are varying from 0.72 to 0.77 accross the catchment.      
+The plot shows the correlation between one INUMET station, the station X1 (black point), and all CHIRPS data of the catchment. The correlation values are varying from 0.72 to 0.77 accross the catchment.      
 
-## Spatial auto-correlation analysis betweent CHIRPS data and INUMET data
+```{r corrplotX11}
+#ggplot of the correlation of INUMET station X9 against all CHIRPS data in the catchment
+pl <- ggplot(result, aes(x=Long, y=Lat)) + geom_polygon(data = SL, 
+                                                        aes(x = long, y = lat, group = group), 
+                                                        colour = "black", fill = NA) +
+  coord_equal() +
+  #add result of correlation
+  geom_point(aes(colour=X9)) +
+  scale_color_gradientn(colours=rainbow(5)) +
+  # add inumet station location
+  geom_point(data=foo[9,], aes(colour=X9), colour="black",size=4,fill=NA)
+
+pl
+```
+The plot shows the correlation between one INUMET station, the station X9 (black point), and all CHIRPS data of the catchment. This plot can be done for the 14 INUMET stations. 
+
+# Spatial auto-correlation analysis betweent CHIRPS data and INUMET data
 The next question we want to answer is what is the space time variation in rainfall accross the catchment and is this different based on the INUMET stations and the CHIRPS data. To analyse the spatial variation accross the catchment, we used the Moran's I. 
 We did 2 different calculation using the Moran's with the 2 sets of precipitation data (INUMET & CHIRPS):
 
 1- at daily step    
 2- at seasonal step   
 
-# Moran's I at daily step using INUMET precipitation data 
+## Moran's I at daily step using INUMET precipitation data 
 We calculate the Moran's I for all INUMET precipitation data accross the catchment using daily step precipitation accross year. The result will show one Moran's I for each day accross years. 
 The script is the following:
 
@@ -279,7 +306,7 @@ plot(moran_i_z,type="l", xlab="Year", ylab="Moran's I",
 ```
 The plot shows the spatial variability of INUMET rainfall observation accross catchment and accross time. The Moran's I is pretty low which means there is high variability of precipitation data accross the catchment. 
 
-# Moran's I at seasonal step using INUMET precipitation data
+## Moran's I at seasonal step using INUMET precipitation data
 
 Then, we calculate the Moran's i at seasonal step to see if the autocorrelation for INUMET stations is variable accross the seasons.  
 The script is the following:
@@ -327,7 +354,7 @@ pander(MoreThan0.2)
 Looking at the results, spring has the higher number of day where Moran's I is inferior to 0. This could mean that this season has the most variable precipitation accross space. However, spring (in addition to automn) is also the season where there is the higher number of day where Moran's I is greater or equal to 0.2, which is saying that spring also has the most auto-correlate precipitation values accross space. So, with those first analysis regarding seasonality, it is hard to make a clear conclusion.   
 
 
-# Moran's I at daily step using CHIRPS data
+## Moran's I at daily step using CHIRPS data
 We will do the same analysis as above but with the CHIRPS data. 
 The script is the following:
 
@@ -388,7 +415,7 @@ The plot shows us the spatial variability accross year for CHIRPS data accross t
 
 If we look at the plot of Moran's I for one year, we can see that the daily precipitation pattern is quite different accross the catchment.
 
-# Moran's I at seasonal step using CHIRPS data
+## Moran's I at seasonal step using CHIRPS data
 As we did the analysis with INUMET data, we will also have a look at the seasonal variability pattern of CHIRPS data. 
 
 ```{r moranseasonchirps}
